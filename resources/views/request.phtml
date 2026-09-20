@@ -14,6 +14,7 @@ use WebtreesShare\GedcomSnapshot;
  * @var string                $app_url
  * @var string                $action
  * @var string                $tree_title
+ * @var string                $requester_name
  * @var string                $photo_url
  */
 
@@ -28,10 +29,14 @@ $deat_date_iso = GedcomSnapshot::gedcomDateToIso($fields['DEAT_DATE'] ?? '');
 </div>
 
 <h1 class="wtshare-title"><?= e($title) ?></h1>
+<?php if ($requester_name !== '') : ?>
+  <p class="wtshare-requester"><?= I18N::translate('Angefragt von %s', e($requester_name)) ?></p>
+<?php endif; ?>
 <?php // $name is already-formatted HTML from webtrees' own fullName() (e.g. <span class="NAME">...) - escaping it here just shows the raw tags. ?>
 <p class="wtshare-subtitle"><?= I18N::translate('Für: %s', $name) ?></p>
 
 <form method="post" action="<?= e($action) ?>" enctype="multipart/form-data">
+  <?= csrf_field() ?>
   <input type="hidden" name="token" value="<?= e($token) ?>">
 
   <?php if ($photo_url !== '') : ?>

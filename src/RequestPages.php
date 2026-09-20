@@ -192,16 +192,17 @@ trait RequestPages
         $photo      = $data['photo'] ?? '';
 
         return $this->viewResponse($this->name() . '::request', [
-            'title'      => I18N::translate('Angaben ergänzen'),
-            'tree'       => $tree,
-            'tree_title' => $tree->title(),
-            'token'      => $token,
-            'name'       => $data['name'] ?? '',
-            'fields'     => $data['fields'] ?? [],
-            'context'    => $data['context'] ?? [],
-            'photo_url'  => $photo !== '' ? $this->actionUrl('RequestExistingPhoto', $tree->name(), ['token' => $token]) : '',
-            'app_url'    => $this->deepLinkUrl($request, $tree, $token),
-            'action'     => $this->actionUrl('RequestSubmit', $tree->name()),
+            'title'           => I18N::translate('Angaben ergänzen'),
+            'tree'            => $tree,
+            'tree_title'      => $tree->title(),
+            'requester_name'  => $data['requester_name'] ?? '',
+            'token'           => $token,
+            'name'            => $data['name'] ?? '',
+            'fields'          => $data['fields'] ?? [],
+            'context'         => $data['context'] ?? [],
+            'photo_url'       => $photo !== '' ? $this->actionUrl('RequestExistingPhoto', $tree->name(), ['token' => $token]) : '',
+            'app_url'         => $this->deepLinkUrl($request, $tree, $token),
+            'action'          => $this->actionUrl('RequestSubmit', $tree->name()),
         ]);
     }
 
@@ -502,13 +503,16 @@ trait RequestPages
      */
     private function createRequestRow(Tree $tree, Individual $individual, int $creator_id): array
     {
+        $creator = Registry::container()->get(UserService::class)->find($creator_id);
+
         $data = [
             // Plain text: this feeds both HTML views (which then e() it) and plain-text emails
             // (requestEmailBody()) - fullName() itself returns pre-formatted HTML (<span class="NAME">...).
-            'name'    => strip_tags($individual->fullName()),
-            'fields'  => GedcomSnapshot::fields($individual),
-            'context' => GedcomSnapshot::context($individual),
-            'photo'   => $this->snapshotExistingPhoto($tree, $individual),
+            'name'            => strip_tags($individual->fullName()),
+            'requester_name'  => $creator?->realName() ?? '',
+            'fields'          => GedcomSnapshot::fields($individual),
+            'context'         => GedcomSnapshot::context($individual),
+            'photo'           => $this->snapshotExistingPhoto($tree, $individual),
         ];
 
         $token      = Str::random(32);

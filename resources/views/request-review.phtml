@@ -49,6 +49,7 @@ $field_labels = [
     <p><?= I18N::translate('Es wurden keine Änderungen vorgeschlagen.') ?></p>
   <?php else : ?>
     <form method="post" action="<?= e($action) ?>">
+      <?= csrf_field() ?>
       <input type="hidden" name="id" value="<?= e((string) $row->id) ?>">
 
       <?php foreach ($compare as $key => $value) : ?>

@@ -69,7 +69,7 @@ declare(strict_types=1);
     .wtshare-logo { height: 22px; width: auto; }
 
     .wtshare-hint {
-      font-size: 12px;
+      font-size: 14px;
       color: var(--text-tertiary);
       margin: 6px 0 0;
     }
@@ -79,6 +79,12 @@ declare(strict_types=1);
       font-weight: 500;
       margin: 0 0 4px;
       color: var(--text-primary);
+    }
+
+    .wtshare-requester {
+      font-size: 14px;
+      color: var(--text-tertiary);
+      margin: 0 0 4px;
     }
 
     .wtshare-subtitle {
@@ -107,6 +113,7 @@ declare(strict_types=1);
     }
 
     .wtshare-field input[type="text"],
+    .wtshare-field input[type="date"],
     .wtshare-field input[type="file"],
     .wtshare-field textarea {
       width: 100%;
@@ -119,7 +126,12 @@ declare(strict_types=1);
       padding: 12px;
     }
 
+    .wtshare-field input[type="date"] {
+      min-height: 48px;
+    }
+
     .wtshare-field input[type="text"]:focus,
+    .wtshare-field input[type="date"]:focus,
     .wtshare-field textarea:focus {
       outline: none;
       border: 2px solid var(--primary);

@@ -30,6 +30,7 @@ use Fisharebest\Webtrees\I18N;
     <?php foreach ($suggestions as $suggestion) : ?>
       <li>
         <form method="post" action="<?= e($continue_action) ?>">
+          <?= csrf_field() ?>
           <input type="hidden" name="token" value="<?= e($token) ?>">
           <input type="hidden" name="xref" value="<?= e($suggestion['xref']) ?>">
           <button type="submit" class="wtshare-button-outline">

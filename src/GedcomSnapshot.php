@@ -99,6 +99,10 @@ final class GedcomSnapshot
             return self::factValue($individual, $definition['tag']);
         }
 
+        if ($definition['kind'] === 'name_part') {
+            return self::currentNameParts($individual)[$definition['part']] ?? '';
+        }
+
         return self::factPart($individual, $definition['tag'], $definition['part'] ?? '');
     }
 
@@ -174,6 +178,40 @@ final class GedcomSnapshot
         $fact = $individual->facts([$tag], false, null, true)->first();
 
         return $fact === null ? '' : trim($fact->value());
+    }
+
+    /**
+     * GIVN/SURN, preferring an explicit "2 GIVN"/"2 SURN" sub-line but falling back to parsing
+     * the primary "1 NAME Given /Surname/" line - most real-world GEDCOM data only has that
+     * primary line, since the structured sub-parts are optional and often never written.
+     *
+     * @return array{GIVN: string, SURN: string}
+     */
+    private static function currentNameParts(Individual $individual): array
+    {
+        $fact = $individual->facts(['NAME'], false, null, true)->first();
+
+        if ($fact === null) {
+            return ['GIVN' => '', 'SURN' => ''];
+        }
+
+        $gedcom = $fact->gedcom();
+        $givn   = self::linePart($gedcom, 'GIVN');
+        $surn   = self::linePart($gedcom, 'SURN');
+
+        if ($givn !== '' || $surn !== '') {
+            return ['GIVN' => $givn, 'SURN' => $surn];
+        }
+
+        if (preg_match('/^1 NAME ?(.*)/', $gedcom, $match) !== 1) {
+            return ['GIVN' => '', 'SURN' => ''];
+        }
+
+        if (preg_match('/^(.*?)\s*\/(.*)\/\s*$/', trim($match[1]), $name_match) === 1) {
+            return ['GIVN' => trim($name_match[1]), 'SURN' => trim($name_match[2])];
+        }
+
+        return ['GIVN' => trim($match[1]), 'SURN' => ''];
     }
 
     /**
@@ -264,6 +302,11 @@ final class GedcomSnapshot
             return;
         }
 
+        // Read the *other* part before touching anything - falls back to parsing the primary
+        // NAME line the same way currentNameParts() does, so a person whose GEDCOM never had
+        // explicit "2 GIVN"/"2 SURN" sub-lines doesn't lose the untouched half of their name.
+        $current = self::currentNameParts($individual);
+
         $gedcom  = $fact->gedcom();
         $pattern = '/\n2 ' . preg_quote($part, '/') . '.*(\n[3-9] .*)*/';
 
@@ -273,8 +316,8 @@ final class GedcomSnapshot
             $gedcom .= "\n2 {$part} {$value}";
         }
 
-        $givn    = $part === 'GIVN' ? $value : self::linePart($gedcom, 'GIVN');
-        $surn    = $part === 'SURN' ? $value : self::linePart($gedcom, 'SURN');
+        $givn    = $part === 'GIVN' ? $value : $current['GIVN'];
+        $surn    = $part === 'SURN' ? $value : $current['SURN'];
         $primary = trim($givn . ' /' . $surn . '/');
         $gedcom  = (string) preg_replace('/^1 NAME[^\n]*/', '1 NAME ' . $primary, $gedcom, 1);
 
