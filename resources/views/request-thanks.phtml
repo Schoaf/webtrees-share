@@ -13,28 +13,32 @@ use Fisharebest\Webtrees\I18N;
 
 ?>
 
-<div style="max-width: 640px; margin: 0 auto;">
-  <h2 class="wt-page-title"><?= e($title) ?></h2>
+<h1 class="wtshare-title"><?= e($title) ?></h1>
 
-  <p><?= I18N::translate('Deine Angaben wurden übermittelt und werden geprüft. Vielen Dank für Deine Hilfe!') ?></p>
-
-  <?php if ($suggestions !== []) : ?>
-    <hr>
-    <p><strong><?= I18N::translate('Möchtest Du auch bei einer dieser Personen helfen?') ?></strong></p>
-
-    <ul style="list-style: none; padding: 0;">
-      <?php foreach ($suggestions as $suggestion) : ?>
-        <li style="margin-bottom: .5rem;">
-          <form method="post" action="<?= e($continue_action) ?>" style="display: inline;">
-            <input type="hidden" name="token" value="<?= e($token) ?>">
-            <input type="hidden" name="xref" value="<?= e($suggestion['xref']) ?>">
-            <button type="submit" class="btn btn-outline-secondary">
-              <?= e($suggestion['name']) ?>
-              <?= I18N::plural('(%s fehlende Angabe)', '(%s fehlende Angaben)', $suggestion['missing'], I18N::number($suggestion['missing'])) ?>
-            </button>
-          </form>
-        </li>
-      <?php endforeach; ?>
-    </ul>
-  <?php endif; ?>
+<div class="wtshare-card">
+  <p style="margin: 0; color: var(--text-secondary);">
+    <?= I18N::translate('Deine Angaben wurden übermittelt und werden geprüft. Vielen Dank für Deine Hilfe!') ?>
+  </p>
 </div>
+
+<?php if ($suggestions !== []) : ?>
+  <p class="wtshare-subtitle" style="margin-bottom: 12px;">
+    <strong style="color: var(--text-primary);"><?= I18N::translate('Möchtest Du auch bei einer dieser Personen helfen?') ?></strong>
+  </p>
+
+  <ul class="wtshare-list">
+    <?php foreach ($suggestions as $suggestion) : ?>
+      <li>
+        <form method="post" action="<?= e($continue_action) ?>">
+          <input type="hidden" name="token" value="<?= e($token) ?>">
+          <input type="hidden" name="xref" value="<?= e($suggestion['xref']) ?>">
+          <button type="submit" class="wtshare-button-outline">
+            <?= e($suggestion['name']) ?>
+            —
+            <?= I18N::plural('%s fehlende Angabe', '%s fehlende Angaben', $suggestion['missing'], I18N::number($suggestion['missing'])) ?>
+          </button>
+        </form>
+      </li>
+    <?php endforeach; ?>
+  </ul>
+<?php endif; ?>

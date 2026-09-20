@@ -10,8 +10,10 @@ use Fisharebest\Webtrees\I18N;
 
 ?>
 
-<div style="max-width: 640px; margin: 0 auto;">
-  <h2 class="wt-page-title"><?= e($title) ?></h2>
+<h1 class="wtshare-title"><?= e($title) ?></h1>
 
-  <p><?= I18N::translate('Dieser Link ist abgelaufen oder ungültig. Bitte die Person, die Dir den Link geschickt hat, um einen neuen.') ?></p>
+<div class="wtshare-card">
+  <p style="margin: 0; color: var(--text-secondary);">
+    <?= I18N::translate('Dieser Link ist abgelaufen oder ungültig. Bitte die Person, die Dir den Link geschickt hat, um einen neuen.') ?>
+  </p>
 </div>

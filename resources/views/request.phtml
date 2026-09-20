@@ -16,78 +16,39 @@ use Fisharebest\Webtrees\I18N;
 
 ?>
 
-<style>
-  .wtshare-form { max-width: 640px; margin: 0 auto; }
-  .wtshare-form .row { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem; }
-  .wtshare-form .row > div { flex: 1 1 240px; }
-  .wtshare-form label { font-weight: bold; display: block; margin-bottom: .25rem; }
-  .wtshare-form input[type="text"], .wtshare-form textarea { width: 100%; box-sizing: border-box; }
-  .wtshare-context { background: #f4f4f4; border-radius: .5rem; padding: 1rem; margin-bottom: 1.5rem; }
-  .wtshare-context dl { display: grid; grid-template-columns: max-content 1fr; gap: .25rem 1rem; margin: 0; }
-  .wtshare-appbanner { margin-bottom: 1rem; }
-</style>
+<h1 class="wtshare-title"><?= e($title) ?></h1>
+<?php // $name is already-formatted HTML from webtrees' own fullName() (e.g. <span class="NAME">...) - escaping it here just shows the raw tags. ?>
+<p class="wtshare-subtitle"><?= I18N::translate('Für: %s', $name) ?></p>
 
-<div class="wtshare-form">
-  <h2 class="wt-page-title"><?= e($title) ?></h2>
+<form method="post" action="<?= e($action) ?>" enctype="multipart/form-data">
+  <input type="hidden" name="token" value="<?= e($token) ?>">
 
-  <p><?= I18N::translate('Für: %s', '<strong>' . e($name) . '</strong>') ?></p>
-
-  <p class="wtshare-appbanner text-muted">
-    <?= I18N::translate('Du hast die webtreesAnd-App installiert?') ?>
-    <a href="<?= e($app_url) ?>"><?= I18N::translate('In der App öffnen') ?></a>
-  </p>
-
-  <?php if ($context !== []) : ?>
-    <div class="wtshare-context">
-      <p><strong><?= I18N::translate('Das wissen wir schon:') ?></strong></p>
-      <dl>
-        <?php foreach ($context as $fact) : ?>
-          <dt><?= e($fact['label']) ?></dt>
-          <dd><?= e($fact['value']) ?></dd>
-        <?php endforeach; ?>
-      </dl>
+  <div class="wtshare-card">
+    <div class="wtshare-field">
+      <label for="wtshare-birt-date"><?= I18N::translate('Geburtsdatum') ?></label>
+      <input type="text" id="wtshare-birt-date" name="BIRT_DATE" value="<?= e($fields['BIRT_DATE'] ?? '') ?>">
     </div>
-  <?php endif; ?>
-
-  <form method="post" action="<?= e($action) ?>" enctype="multipart/form-data">
-    <input type="hidden" name="token" value="<?= e($token) ?>">
-
-    <div class="row">
-      <div>
-        <label for="wtshare-birt-date"><?= I18N::translate('Geburtsdatum') ?></label>
-        <input type="text" id="wtshare-birt-date" name="BIRT_DATE" value="<?= e($fields['BIRT_DATE'] ?? '') ?>">
-      </div>
-      <div>
-        <label for="wtshare-birt-plac"><?= I18N::translate('Geburtsort') ?></label>
-        <input type="text" id="wtshare-birt-plac" name="BIRT_PLAC" value="<?= e($fields['BIRT_PLAC'] ?? '') ?>">
-      </div>
+    <div class="wtshare-field">
+      <label for="wtshare-birt-plac"><?= I18N::translate('Geburtsort') ?></label>
+      <input type="text" id="wtshare-birt-plac" name="BIRT_PLAC" value="<?= e($fields['BIRT_PLAC'] ?? '') ?>">
     </div>
-
-    <div class="row">
-      <div>
-        <label for="wtshare-deat-date"><?= I18N::translate('Sterbedatum') ?></label>
-        <input type="text" id="wtshare-deat-date" name="DEAT_DATE" value="<?= e($fields['DEAT_DATE'] ?? '') ?>">
-      </div>
-      <div>
-        <label for="wtshare-deat-plac"><?= I18N::translate('Sterbeort') ?></label>
-        <input type="text" id="wtshare-deat-plac" name="DEAT_PLAC" value="<?= e($fields['DEAT_PLAC'] ?? '') ?>">
-      </div>
+    <div class="wtshare-field">
+      <label for="wtshare-deat-date"><?= I18N::translate('Sterbedatum') ?></label>
+      <input type="text" id="wtshare-deat-date" name="DEAT_DATE" value="<?= e($fields['DEAT_DATE'] ?? '') ?>">
     </div>
-
-    <div class="row">
-      <div>
-        <label for="wtshare-photo"><?= I18N::translate('Foto hinzufügen') ?></label>
-        <input type="file" id="wtshare-photo" name="photo" accept="image/*">
-      </div>
+    <div class="wtshare-field">
+      <label for="wtshare-deat-plac"><?= I18N::translate('Sterbeort') ?></label>
+      <input type="text" id="wtshare-deat-plac" name="DEAT_PLAC" value="<?= e($fields['DEAT_PLAC'] ?? '') ?>">
     </div>
-
-    <div class="row">
-      <div>
-        <label for="wtshare-note"><?= I18N::translate('Mehr Informationen') ?></label>
-        <textarea id="wtshare-note" name="note" rows="4"></textarea>
-      </div>
+    <div class="wtshare-field">
+      <label for="wtshare-photo"><?= I18N::translate('Foto hinzufügen') ?></label>
+      <input type="file" id="wtshare-photo" name="photo" accept="image/*">
     </div>
+    <div class="wtshare-field">
+      <label for="wtshare-note"><?= I18N::translate('Mehr Informationen') ?></label>
+      <textarea id="wtshare-note" name="note" rows="4"></textarea>
+    </div>
+  </div>
 
-    <p><button type="submit" class="btn btn-primary"><?= I18N::translate('Abschicken') ?></button></p>
-  </form>
-</div>
+  <button type="submit"><?= I18N::translate('Abschicken') ?></button>
+</form>

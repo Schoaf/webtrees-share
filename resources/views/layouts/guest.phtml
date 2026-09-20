@@ -1,0 +1,148 @@
+<?php
+
+declare(strict_types=1);
+
+/**
+ * A deliberately bare, standalone page for the guest-facing screens
+ * (request / request-invalid / request-thanks) - no webtrees site menu,
+ * header or footer at all: whoever opens this link has no account and no
+ * business navigating the rest of the tree. Styled to match the companion
+ * app's own design (see stammbaum-app/lib/theme/app_theme.dart) rather than
+ * the webtrees site theme, since that's the "modern, mobile" reference this
+ * page is meant to feel like.
+ *
+ * @var string $title
+ * @var string $content
+ */
+
+?>
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title><?= e($title) ?></title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #2F6FB0;
+      --secondary: #5C728A;
+      --background: #F7F6FA;
+      --surface: #FFFFFF;
+      --text-primary: #1B1B1F;
+      --text-secondary: #49454F;
+      --text-tertiary: #79747E;
+      --divider: #E7E0EC;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--background);
+      color: var(--text-primary);
+      font-family: 'Roboto', system-ui, sans-serif;
+      font-size: 16px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .wtshare-page {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 24px 20px 48px;
+    }
+
+    h1, h2, .wtshare-title {
+      font-size: 22px;
+      font-weight: 500;
+      margin: 0 0 4px;
+      color: var(--text-primary);
+    }
+
+    .wtshare-subtitle {
+      font-size: 15px;
+      color: var(--text-secondary);
+      margin: 0 0 24px;
+    }
+
+    .wtshare-card {
+      background: var(--surface);
+      border-radius: 16px;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.14), 0 1px 3px rgba(0, 0, 0, 0.08);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .wtshare-field { margin-bottom: 16px; }
+    .wtshare-field:last-child { margin-bottom: 0; }
+
+    .wtshare-field label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-tertiary);
+      margin-bottom: 6px;
+    }
+
+    .wtshare-field input[type="text"],
+    .wtshare-field input[type="file"],
+    .wtshare-field textarea {
+      width: 100%;
+      font: inherit;
+      font-size: 16px;
+      color: var(--text-primary);
+      background: var(--surface);
+      border: 1px solid var(--text-tertiary);
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    .wtshare-field input[type="text"]:focus,
+    .wtshare-field textarea:focus {
+      outline: none;
+      border: 2px solid var(--primary);
+      padding: 11px;
+    }
+
+    .wtshare-field textarea { resize: vertical; }
+
+    button, .wtshare-button {
+      display: block;
+      width: 100%;
+      font: inherit;
+      font-size: 15px;
+      font-weight: 500;
+      color: #FFFFFF;
+      background: var(--primary);
+      border: none;
+      border-radius: 999px;
+      padding: 16px;
+      text-align: center;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .wtshare-button-outline {
+      background: transparent;
+      color: var(--primary);
+      border: 1px solid var(--divider);
+      margin-bottom: 12px;
+    }
+
+    .wtshare-list { list-style: none; margin: 0; padding: 0; }
+    .wtshare-list li { margin-bottom: 12px; }
+    .wtshare-list li:last-child { margin-bottom: 0; }
+
+    a { color: var(--primary); }
+  </style>
+</head>
+<body>
+  <div class="wtshare-page">
+    <?= $content ?>
+  </div>
+</body>
+</html>

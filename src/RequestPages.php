@@ -173,6 +173,8 @@ trait RequestPages
      */
     public function getRequestAction(ServerRequestInterface $request): ResponseInterface
     {
+        // No webtrees site menu/header for a guest with no account - see layouts/guest.phtml.
+        $this->layout = $this->name() . '::layouts/guest';
         $tree  = Validator::attributes($request)->tree();
         $token = Validator::queryParams($request)->string('token', '');
         $row   = $this->findByToken($token);
@@ -204,6 +206,7 @@ trait RequestPages
      */
     public function postRequestSubmitAction(ServerRequestInterface $request): ResponseInterface
     {
+        $this->layout = $this->name() . '::layouts/guest';
         $tree  = Validator::attributes($request)->tree();
         $body  = $this->body($request);
         $token = $this->str($body, 'token');
