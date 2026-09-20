@@ -36,6 +36,7 @@ use function pathinfo;
 use function redirect;
 use function response;
 use function sha1;
+use function strip_tags;
 use function strtotime;
 use function time;
 use function usort;
@@ -331,7 +332,7 @@ trait RequestPages
             'title'     => I18N::translate('Antwort prüfen'),
             'tree'      => $tree,
             'row'       => $row,
-            'name'      => $individual instanceof Individual ? $individual->fullName() : ($request_data['name'] ?? $row->xref),
+            'name'      => $individual instanceof Individual ? strip_tags($individual->fullName()) : ($request_data['name'] ?? $row->xref),
             'compare'   => $compare,
             'note'      => $response_data['note'] ?? '',
             'applied'   => $row->status === 'applied',
@@ -457,7 +458,9 @@ trait RequestPages
     private function createRequestRow(Tree $tree, Individual $individual, int $creator_id): array
     {
         $data = [
-            'name'    => $individual->fullName(),
+            // Plain text: this feeds both HTML views (which then e() it) and plain-text emails
+            // (requestEmailBody()) - fullName() itself returns pre-formatted HTML (<span class="NAME">...).
+            'name'    => strip_tags($individual->fullName()),
             'fields'  => GedcomSnapshot::fields($individual),
             'context' => GedcomSnapshot::context($individual),
         ];
@@ -631,7 +634,7 @@ trait RequestPages
             if ($missing > 0) {
                 $suggestions[] = [
                     'xref'    => $relative->xref(),
-                    'name'    => $relative->fullName(),
+                    'name'    => strip_tags($relative->fullName()),
                     'missing' => $missing,
                 ];
             }
@@ -653,7 +656,7 @@ trait RequestPages
 
         foreach ($rows as $row) {
             $individual       = Registry::individualFactory()->make($row->xref, $tree);
-            $names[$row->id]  = $individual instanceof Individual ? $individual->fullName() : $row->xref;
+            $names[$row->id]  = $individual instanceof Individual ? strip_tags($individual->fullName()) : $row->xref;
         }
 
         return $names;
