@@ -6,8 +6,8 @@ Initial version.
 
 - Create a request for one Individual (`CreateRequest`), snapshotting their key facts (birth/death date and
   place) at request time.
-- Public, no-login guest page to view the snapshot and submit corrections/additions plus a free-text note
-  (`Request`).
+- Public, no-login guest page to view the snapshot and submit corrections/additions, a photo, and a
+  free-text note (`Request`).
 - Requests and their responses live in a single table (`webtreesshare_request`); nothing is written to the
   tree until the requester reviews and applies it.
 - Requester review page: old vs. submitted values per field, accept individually, apply as a normal edit
@@ -20,3 +20,7 @@ Initial version.
   fixed fields are still missing for them (`RequestContinue`).
 - `Info` endpoint so a client (e.g. a companion app) can check the module is installed and enabled before
   offering the feature.
+- Guest-submitted photos are held outside the tree's media library (webtrees' own "data" filesystem) until
+  the requester accepts them; only then are they turned into a real media object, the same way
+  webtreesand-api's own photo upload does it (content-hash filename, media object accepted immediately,
+  link to the person a normal edit).

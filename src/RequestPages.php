@@ -11,28 +11,38 @@ use Fisharebest\Webtrees\I18N;
 use Fisharebest\Webtrees\Individual;
 use Fisharebest\Webtrees\Registry;
 use Fisharebest\Webtrees\Services\EmailService;
+use Fisharebest\Webtrees\Services\MediaFileService;
+use Fisharebest\Webtrees\Services\PendingChangesService;
 use Fisharebest\Webtrees\Services\UserService;
 use Fisharebest\Webtrees\SiteUser;
 use Fisharebest\Webtrees\Tree;
 use Fisharebest\Webtrees\TreeUser;
 use Fisharebest\Webtrees\Validator;
 use Illuminate\Support\Str;
+use League\Flysystem\FilesystemOperator;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Message\UploadedFileInterface;
 
 use function date;
 use function e;
+use function getimagesizefromstring;
 use function http_build_query;
+use function image_type_to_extension;
 use function json_decode;
 use function json_encode;
 use function nl2br;
+use function pathinfo;
 use function redirect;
 use function response;
+use function sha1;
 use function strtotime;
 use function time;
 use function usort;
 
 use const JSON_THROW_ON_ERROR;
+use const PATHINFO_EXTENSION;
+use const UPLOAD_ERR_OK;
 
 /**
  * Every action method of this module (get.../post...), plus the private helpers they share.
@@ -212,6 +222,7 @@ trait RequestPages
         $response_data = [
             'fields' => $fields,
             'note'   => GedcomSnapshot::line($this->str($body, 'note')),
+            'photo'  => $this->storePendingPhoto($request->getUploadedFiles()['photo'] ?? null),
         ];
 
         DB::table('webtreesshare_request')
@@ -310,14 +321,47 @@ trait RequestPages
             }
         }
 
+        $photo = $response_data['photo'] ?? '';
+
         return $this->viewResponse($this->name() . '::request-review', [
-            'title'   => I18N::translate('Antwort prüfen'),
-            'row'     => $row,
-            'name'    => $individual instanceof Individual ? $individual->fullName() : ($request_data['name'] ?? $row->xref),
-            'compare' => $compare,
-            'note'    => $response_data['note'] ?? '',
-            'applied' => $row->status === 'applied',
-            'action'  => $this->actionUrl('RequestReview', $tree->name()),
+            'title'     => I18N::translate('Antwort prüfen'),
+            'row'       => $row,
+            'name'      => $individual instanceof Individual ? $individual->fullName() : ($request_data['name'] ?? $row->xref),
+            'compare'   => $compare,
+            'note'      => $response_data['note'] ?? '',
+            'applied'   => $row->status === 'applied',
+            'action'    => $this->actionUrl('RequestReview', $tree->name()),
+            'photo_url' => $photo !== '' ? $this->actionUrl('RequestPhoto', $tree->name(), ['id' => $row->id]) : '',
+        ]);
+    }
+
+    /**
+     * Streams a not-yet-reviewed photo to the requester only - it never becomes web-accessible
+     * more broadly than that, since it isn't part of the tree's media library yet.
+     */
+    public function getRequestPhotoAction(ServerRequestInterface $request): ResponseInterface
+    {
+        $tree = Validator::attributes($request)->tree();
+        $id   = Validator::queryParams($request)->integer('id', 0);
+        $row  = DB::table('webtreesshare_request')->where('id', '=', $id)->first();
+
+        if ($row === null || (int) $row->creator_user_id !== (int) Auth::id() || (int) $row->gedcom_id !== $tree->id()) {
+            return $this->error(404, 'not-found');
+        }
+
+        $response_data = json_decode($row->response_data ?? '{}', true) ?: [];
+        $photo         = $response_data['photo'] ?? '';
+        $filesystem    = $this->pendingPhotoFilesystem();
+
+        if ($photo === '' || !$filesystem->fileExists($photo)) {
+            return $this->error(404, 'not-found');
+        }
+
+        $extension  = pathinfo($photo, PATHINFO_EXTENSION);
+        $mime_types = ['jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png', 'gif' => 'image/gif', 'webp' => 'image/webp'];
+
+        return response($filesystem->read($photo), 200, [
+            'content-type' => $mime_types[$extension] ?? 'application/octet-stream',
         ]);
     }
 
@@ -358,6 +402,12 @@ trait RequestPages
 
         if ($note !== '' && !empty($accept['note'])) {
             $individual->createFact('1 NOTE ' . $note, true);
+        }
+
+        $photo = (string) ($response_data['photo'] ?? '');
+
+        if ($photo !== '' && !empty($accept['photo'])) {
+            $this->applyPendingPhoto($tree, $individual, $photo);
         }
 
         DB::table('webtreesshare_request')
@@ -614,5 +664,80 @@ trait RequestPages
             ->where('creator_user_id', '=', $user_id)
             ->where('status', '=', 'answered')
             ->count();
+    }
+
+    /**
+     * Holding area for a guest-uploaded photo that hasn't been reviewed yet - webtrees' own
+     * "data" filesystem, not the tree's media folder, so nothing is added to the tree's media
+     * library until the requester explicitly accepts it.
+     */
+    private function pendingPhotoFilesystem(): FilesystemOperator
+    {
+        return Registry::filesystem()->data(WebtreesShareModule::PENDING_PHOTO_PATH);
+    }
+
+    /**
+     * Save a guest's uploaded photo to the pending holding area, after checking it's really an
+     * image (never trust the client-supplied filename/extension) and within the size cap.
+     * Returns the stored filename, or '' if there was no valid upload to save.
+     */
+    private function storePendingPhoto(UploadedFileInterface|null $uploaded): string
+    {
+        if ($uploaded === null || $uploaded->getError() !== UPLOAD_ERR_OK) {
+            return '';
+        }
+
+        if ($uploaded->getSize() === null || $uploaded->getSize() === 0 || $uploaded->getSize() > WebtreesShareModule::MAX_PHOTO_BYTES) {
+            return '';
+        }
+
+        $content    = (string) $uploaded->getStream();
+        $image_info = @getimagesizefromstring($content);
+
+        if ($image_info === false) {
+            return '';
+        }
+
+        $extension = image_type_to_extension($image_info[2], false);
+
+        if ($extension === false) {
+            return '';
+        }
+
+        $filename = Str::random(24) . '.' . $extension;
+
+        $this->pendingPhotoFilesystem()->write($filename, $content);
+
+        return $filename;
+    }
+
+    /**
+     * Turn an accepted pending photo into a real webtrees media object, exactly the way
+     * webtreesand-api's own photo upload does it (content-hash filename, accept the media
+     * object immediately, link it to the record as a normal - possibly pending - edit).
+     */
+    private function applyPendingPhoto(Tree $tree, Individual $individual, string $photo): void
+    {
+        $pending_fs = $this->pendingPhotoFilesystem();
+
+        if (!$pending_fs->fileExists($photo)) {
+            return;
+        }
+
+        $content   = $pending_fs->read($photo);
+        $extension = pathinfo($photo, PATHINFO_EXTENSION);
+        $filename  = sha1($content) . '.' . $extension;
+
+        $tree->mediaFilesystem()->write($filename, $content);
+
+        $media_file_service = Registry::container()->get(MediaFileService::class);
+        $gedcom             = "0 @@ OBJE\n" . $media_file_service->createMediaFileGedcom($filename, 'photo', '', '');
+        $media              = $tree->createMediaObject($gedcom);
+
+        Registry::container()->get(PendingChangesService::class)->acceptRecord($media);
+
+        $individual->createFact('1 OBJE @' . $media->xref() . '@', true);
+
+        $pending_fs->delete($photo);
     }
 }

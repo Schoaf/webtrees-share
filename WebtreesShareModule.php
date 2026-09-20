@@ -59,6 +59,14 @@ class WebtreesShareModule extends AbstractModule implements ModuleCustomInterfac
     // How long a request link stays valid for.
     public const int REQUEST_LIFETIME_SECONDS = 2 * 24 * 60 * 60;
 
+    // A generous cap on the guest-uploaded photo - PHP's own upload_max_filesize/post_max_size
+    // apply before this code ever runs; this is just a second, explicit guard.
+    public const int MAX_PHOTO_BYTES = 10 * 1024 * 1024;
+
+    // Where an uploaded-but-not-yet-reviewed photo is held (webtrees' own "data" filesystem,
+    // never the tree's real media folder - nothing is added to the tree until the requester accepts it).
+    public const string PENDING_PHOTO_PATH = 'webtreesshare/pending-photos/';
+
     // The fixed set of facts a guest can see/complete. Keep this small and explicit -
     // this is a simple "fill in the basics" form, not a general fact editor.
     public const array FIELDS = [

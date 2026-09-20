@@ -12,6 +12,7 @@ use Fisharebest\Webtrees\I18N;
  * @var string $note
  * @var bool   $applied
  * @var string $action
+ * @var string $photo_url
  */
 
 $field_labels = [
@@ -41,7 +42,7 @@ $field_labels = [
 
   <?php if ($applied) : ?>
     <p class="alert alert-success"><?= I18N::translate('Diese Antwort wurde bereits übernommen.') ?></p>
-  <?php elseif ($compare === [] && $note === '') : ?>
+  <?php elseif ($compare === [] && $note === '' && $photo_url === '') : ?>
     <p><?= I18N::translate('Es wurden keine Änderungen vorgeschlagen.') ?></p>
   <?php else : ?>
     <form method="post" action="<?= e($action) ?>">
@@ -72,6 +73,18 @@ $field_labels = [
           </label>
           <div class="values">
             <div class="after"><?= nl2br(e($note)) ?></div>
+          </div>
+        </div>
+      <?php endif; ?>
+
+      <?php if ($photo_url !== '') : ?>
+        <div class="wtshare-compare-row">
+          <label>
+            <input type="checkbox" name="accept[photo]" value="1" checked>
+            <strong><?= I18N::translate('Foto übernehmen') ?></strong>
+          </label>
+          <div class="values">
+            <div class="after"><img src="<?= e($photo_url) ?>" alt="" style="max-width: 100%; max-height: 300px; border-radius: .5rem;"></div>
           </div>
         </div>
       <?php endif; ?>

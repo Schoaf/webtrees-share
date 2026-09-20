@@ -19,7 +19,7 @@ Independent of other modules such as "webtreesand-api" — neither reads the oth
    person's key facts (birth/death date and place).
 2. **The link** opens a small, phone-friendly webtrees page — no login required. The person sees exactly
    what was known at request time (not the tree's current, possibly more sensitive state), can correct or
-   complete the fields, and add a free-text note.
+   complete the fields, add a photo, and add a free-text note.
 3. **The answer** goes back to whoever made the request — as a notification (an icon in webtrees, optionally
    in a companion app) and by email. webtrees has no private-messaging feature, so this module stores the
    request and its response itself, in a single table.
@@ -63,4 +63,8 @@ uses):
 | `Request` | GET/POST | no | the form page shown to the requested person |
 | `RequestContinue` | POST | no | creates a follow-up request from the "ask further" list |
 | `RequestReview` | GET/POST | yes, requester | list, or the compare-and-apply page |
+| `RequestPhoto` | GET | yes, requester | streams a not-yet-reviewed photo for the review page |
 | `RequestNotifications` | GET | yes | `{unread}` for a notification badge |
+
+A submitted photo is held in webtrees' own "data" folder, never the tree's media library, until the
+requester accepts it on the review page — only then does it become a real media object.

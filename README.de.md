@@ -20,7 +20,8 @@ liest die Tabellen oder Klassen des anderen.
    sofort eine Momentaufnahme der wichtigsten Angaben zu dieser Person gespeichert (Geburt/Tod, Datum und Ort).
 2. **Der Link** führt zu einer schlichten, für Handys geeigneten webtrees-Seite – kein Login nötig. Die
    angefragte Person sieht genau das, was zum Zeitpunkt der Anfrage bekannt war (nicht den aktuellen Stand
-   des Stammbaums), kann die Angaben ergänzen oder korrigieren und dazu eine freie Notiz hinterlassen.
+   des Stammbaums), kann die Angaben ergänzen oder korrigieren, ein Foto hinzufügen und dazu eine freie
+   Notiz hinterlassen.
 3. **Die Antwort** geht an die Person zurück, die die Anfrage gestellt hat – als Benachrichtigung (Icon in
    webtrees, optional in einer begleitenden App) und per E-Mail. Es gibt in webtrees keine private
    Nachrichtenfunktion, deshalb speichert dieses Modul Anfrage und Antwort selbst, in einer einzigen Tabelle.
@@ -66,4 +67,9 @@ Einstieg in den Quelltext ist der Kopf von `WebtreesShareModule.php`. Die wichti
 | `Request` | GET/POST | nein | die Formularseite für die angefragte Person |
 | `RequestContinue` | POST | nein | legt aus der Weiterfragen-Liste eine neue Anfrage an |
 | `RequestReview` | GET/POST | ja, Ersteller | Liste bzw. Vergleichs-/Übernahme-Seite |
+| `RequestPhoto` | GET | ja, Ersteller | liefert ein noch nicht geprüftes Foto für die Vergleichsseite |
 | `RequestNotifications` | GET | ja | `{unread}` für ein Benachrichtigungssymbol |
+
+Ein eingereichtes Foto liegt zunächst im eigenen „data“-Ordner von webtrees, nicht im Medienarchiv des
+Baums – erst wenn die anfragende Person es auf der Vergleichsseite annimmt, wird daraus ein echtes
+Medienobjekt.
