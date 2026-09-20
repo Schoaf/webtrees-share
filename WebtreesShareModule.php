@@ -1,0 +1,189 @@
+<?php
+
+declare(strict_types=1);
+
+namespace WebtreesShare;
+
+use Fisharebest\Webtrees\Auth;
+use Fisharebest\Webtrees\Http\RequestHandlers\ModuleAction;
+use Fisharebest\Webtrees\I18N;
+use Fisharebest\Webtrees\Menu;
+use Fisharebest\Webtrees\Module\AbstractModule;
+use Fisharebest\Webtrees\Module\ModuleCustomInterface;
+use Fisharebest\Webtrees\Module\ModuleCustomTrait;
+use Fisharebest\Webtrees\Module\ModuleMenuInterface;
+use Fisharebest\Webtrees\Module\ModuleMenuTrait;
+use Fisharebest\Webtrees\Registry;
+use Fisharebest\Webtrees\Services\MigrationService;
+use Fisharebest\Webtrees\Tree;
+use Fisharebest\Webtrees\View;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
+use Throwable;
+
+use function is_array;
+use function is_string;
+use function json_decode;
+use function response;
+use function route;
+
+/**
+ * Entry point of the module: metadata, menu, schema migration and small shared request helpers.
+ *
+ * All endpoints run through webtrees' built-in module route
+ * /module/webtrees-share/<Action>[/<tree>] (index.php?route=... without URL rewriting).
+ * There are deliberately no custom routes - the routing API changes between webtrees
+ * versions, the module route stays.
+ *
+ * Split by concern:
+ *   src/RequestPages.php     every action method (create, guest form, review, notifications, email)
+ *   src/GedcomSnapshot.php   pure helpers: snapshot a person's key facts, apply accepted fields back
+ *   src/Migrations/          database schema (one table)
+ *
+ * Independent of "webtreesand-api" - it does not read its classes or tables, so either module
+ * can be enabled/disabled/updated without affecting the other. An app that wants the "ask a
+ * relative" feature should check whether this module resolves (see getInfoAction) before
+ * showing it, since it is a separate, optional module.
+ */
+class WebtreesShareModule extends AbstractModule implements ModuleCustomInterface, ModuleMenuInterface
+{
+    use ModuleCustomTrait;
+    use ModuleMenuTrait;
+    use RequestPages;
+
+    public const string MODULE_NAME = 'webtrees-share';
+
+    private const string SCHEMA_SETTING = 'webtreesshare_schema_version';
+    private const int    SCHEMA_VERSION = 1;
+
+    // How long a request link stays valid for.
+    public const int REQUEST_LIFETIME_SECONDS = 2 * 24 * 60 * 60;
+
+    // The fixed set of facts a guest can see/complete. Keep this small and explicit -
+    // this is a simple "fill in the basics" form, not a general fact editor.
+    public const array FIELDS = [
+        'BIRT_DATE' => ['tag' => 'BIRT', 'part' => 'DATE'],
+        'BIRT_PLAC' => ['tag' => 'BIRT', 'part' => 'PLAC'],
+        'DEAT_DATE' => ['tag' => 'DEAT', 'part' => 'DATE'],
+        'DEAT_PLAC' => ['tag' => 'DEAT', 'part' => 'PLAC'],
+    ];
+
+    public function __construct()
+    {
+        $this->setName(self::MODULE_NAME);
+    }
+
+    public function title(): string
+    {
+        return I18N::translate('Nach Informationen fragen');
+    }
+
+    public function description(): string
+    {
+        return I18N::translate('Bittet eine Person ohne Konto, Angaben zu einer einzelnen Person im Stammbaum zu ergänzen.');
+    }
+
+    public function customModuleAuthorName(): string
+    {
+        return 'Andreas Scharf';
+    }
+
+    public function customModuleVersion(): string
+    {
+        return '0.1.0';
+    }
+
+    public function boot(): void
+    {
+        View::registerNamespace($this->name(), $this->resourcesFolder() . 'views/');
+
+        Registry::container()->get(MigrationService::class)
+            ->updateSchema('\WebtreesShare\Migrations', self::SCHEMA_SETTING, self::SCHEMA_VERSION);
+    }
+
+    public function resourcesFolder(): string
+    {
+        return __DIR__ . '/resources/';
+    }
+
+    public function defaultMenuOrder(): int
+    {
+        return 100;
+    }
+
+    /**
+     * Menu entry "Anfragen (N)" - only for signed-in users, and only once they have at
+     * least one unread response, so the menu stays quiet otherwise.
+     */
+    public function getMenu(Tree $tree): Menu|null
+    {
+        if (!Auth::check()) {
+            return null;
+        }
+
+        $unread = $this->unreadCount((int) Auth::id());
+
+        if ($unread === 0) {
+            return null;
+        }
+
+        $label = I18N::translate('Anfragen') . ' (' . $unread . ')';
+
+        return new Menu($label, $this->actionUrl('RequestReview', $tree->name()), 'menu-webtreesshare', ['rel' => 'nofollow']);
+    }
+
+    /**
+     * Build a URL to one of this module's own actions - same convention as webtreesand-api.
+     *
+     * @param array<string,scalar|null> $params
+     */
+    private function actionUrl(string $action, string|null $tree, array $params = []): string
+    {
+        $all = ['module' => $this->name(), 'action' => $action, 'tree' => $tree] + $params;
+
+        try {
+            return route('module', $all);
+        } catch (Throwable) {
+            return route(ModuleAction::class, $all);
+        }
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function body(ServerRequestInterface $request): array
+    {
+        $parsed = $request->getParsedBody();
+
+        if (is_array($parsed) && $parsed !== []) {
+            return $parsed;
+        }
+
+        $json = (string) $request->getBody();
+
+        if ($json !== '') {
+            $decoded = json_decode($json, true);
+
+            if (is_array($decoded)) {
+                return $decoded;
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * @param array<string,mixed> $body
+     */
+    private function str(array $body, string $key, string $default = ''): string
+    {
+        $value = $body[$key] ?? $default;
+
+        return is_string($value) ? $value : $default;
+    }
+
+    private function error(int $status, string $code): ResponseInterface
+    {
+        return response(['ok' => false, 'error' => $code, 'status' => $status])->withStatus($status);
+    }
+}

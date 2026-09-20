@@ -1,0 +1,82 @@
+<?php
+
+declare(strict_types=1);
+
+use Fisharebest\Webtrees\I18N;
+
+/**
+ * @var string $title
+ * @var object $row
+ * @var string $name
+ * @var array<string,array{before: string, after: string}> $compare
+ * @var string $note
+ * @var bool   $applied
+ * @var string $action
+ */
+
+$field_labels = [
+    'BIRT_DATE' => I18N::translate('Geburtsdatum'),
+    'BIRT_PLAC' => I18N::translate('Geburtsort'),
+    'DEAT_DATE' => I18N::translate('Sterbedatum'),
+    'DEAT_PLAC' => I18N::translate('Sterbeort'),
+];
+
+?>
+
+<style>
+  .wtshare-review { max-width: 720px; margin: 0 auto; }
+  .wtshare-compare-row { border: 1px solid #ddd; border-radius: .5rem; padding: 1rem; margin-bottom: 1rem; }
+  .wtshare-compare-row .values { display: flex; gap: 1rem; flex-wrap: wrap; margin: .5rem 0; }
+  .wtshare-compare-row .values > div { flex: 1 1 240px; }
+  .wtshare-compare-row .values .before { color: #888; }
+  .wtshare-compare-row .values .after { font-weight: bold; }
+  @media (max-width: 480px) {
+    .wtshare-compare-row .values { flex-direction: column; }
+  }
+</style>
+
+<div class="wtshare-review">
+  <h2 class="wt-page-title"><?= e($title) ?></h2>
+  <p><?= I18N::translate('Für: %s', '<strong>' . e($name) . '</strong>') ?></p>
+
+  <?php if ($applied) : ?>
+    <p class="alert alert-success"><?= I18N::translate('Diese Antwort wurde bereits übernommen.') ?></p>
+  <?php elseif ($compare === [] && $note === '') : ?>
+    <p><?= I18N::translate('Es wurden keine Änderungen vorgeschlagen.') ?></p>
+  <?php else : ?>
+    <form method="post" action="<?= e($action) ?>">
+      <input type="hidden" name="id" value="<?= e((string) $row->id) ?>">
+
+      <?php foreach ($compare as $key => $value) : ?>
+        <div class="wtshare-compare-row">
+          <label>
+            <input type="checkbox" name="accept[<?= e($key) ?>]" value="1" checked>
+            <strong><?= e($field_labels[$key] ?? $key) ?></strong>
+          </label>
+          <div class="values">
+            <div class="before">
+              <?= I18N::translate('Bisher') ?>: <?= $value['before'] === '' ? I18N::translate('(leer)') : e($value['before']) ?>
+            </div>
+            <div class="after">
+              <?= I18N::translate('Neu') ?>: <?= e($value['after']) ?>
+            </div>
+          </div>
+        </div>
+      <?php endforeach; ?>
+
+      <?php if ($note !== '') : ?>
+        <div class="wtshare-compare-row">
+          <label>
+            <input type="checkbox" name="accept[note]" value="1" checked>
+            <strong><?= I18N::translate('Als Notiz übernehmen') ?></strong>
+          </label>
+          <div class="values">
+            <div class="after"><?= nl2br(e($note)) ?></div>
+          </div>
+        </div>
+      <?php endif; ?>
+
+      <p><button type="submit" class="btn btn-primary"><?= I18N::translate('Speichern') ?></button></p>
+    </form>
+  <?php endif; ?>
+</div>

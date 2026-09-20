@@ -1,0 +1,44 @@
+<?php
+
+declare(strict_types=1);
+
+use Fisharebest\Webtrees\I18N;
+use Fisharebest\Webtrees\Tree;
+
+/**
+ * @var string           $title
+ * @var Tree              $tree
+ * @var iterable<object>  $rows
+ * @var array<int,string> $names
+ */
+
+?>
+
+<div style="max-width: 640px; margin: 0 auto;">
+  <h2 class="wt-page-title"><?= e($title) ?></h2>
+
+  <table class="table">
+    <thead>
+      <tr>
+        <th><?= I18N::translate('Person') ?></th>
+        <th><?= I18N::translate('Status') ?></th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      <?php foreach ($rows as $row) : ?>
+        <tr>
+          <td><?= e($names[$row->id] ?? $row->xref) ?></td>
+          <td>
+            <?= $row->status === 'applied' ? I18N::translate('Übernommen') : I18N::translate('Neue Antwort') ?>
+          </td>
+          <td>
+            <a href="<?= e(route('module', ['module' => 'webtrees-share', 'action' => 'RequestReview', 'tree' => $tree->name(), 'id' => $row->id])) ?>">
+              <?= I18N::translate('Ansehen') ?>
+            </a>
+          </td>
+        </tr>
+      <?php endforeach; ?>
+    </tbody>
+  </table>
+</div>

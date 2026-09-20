@@ -1,0 +1,40 @@
+<?php
+
+declare(strict_types=1);
+
+use Fisharebest\Webtrees\I18N;
+
+/**
+ * @var string $title
+ * @var list<array{xref: string, name: string, missing: int}> $suggestions
+ * @var string $token
+ * @var string $continue_action
+ */
+
+?>
+
+<div style="max-width: 640px; margin: 0 auto;">
+  <h2 class="wt-page-title"><?= e($title) ?></h2>
+
+  <p><?= I18N::translate('Deine Angaben wurden übermittelt und werden geprüft. Vielen Dank für Deine Hilfe!') ?></p>
+
+  <?php if ($suggestions !== []) : ?>
+    <hr>
+    <p><strong><?= I18N::translate('Möchtest Du auch bei einer dieser Personen helfen?') ?></strong></p>
+
+    <ul style="list-style: none; padding: 0;">
+      <?php foreach ($suggestions as $suggestion) : ?>
+        <li style="margin-bottom: .5rem;">
+          <form method="post" action="<?= e($continue_action) ?>" style="display: inline;">
+            <input type="hidden" name="token" value="<?= e($token) ?>">
+            <input type="hidden" name="xref" value="<?= e($suggestion['xref']) ?>">
+            <button type="submit" class="btn btn-outline-secondary">
+              <?= e($suggestion['name']) ?>
+              <?= I18N::plural('(%s fehlende Angabe)', '(%s fehlende Angaben)', $suggestion['missing'], I18N::number($suggestion['missing'])) ?>
+            </button>
+          </form>
+        </li>
+      <?php endforeach; ?>
+    </ul>
+  <?php endif; ?>
+</div>
