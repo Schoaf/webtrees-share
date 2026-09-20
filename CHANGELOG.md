@@ -24,3 +24,12 @@ Initial version.
   the requester accepts them; only then are they turned into a real media object, the same way
   webtreesand-api's own photo upload does it (content-hash filename, media object accepted immediately,
   link to the person a normal edit).
+
+### Fixes since first deploy
+
+- `module.php`'s autoloader didn't convert `\` to `/` when resolving a class in a sub-namespace
+  (`WebtreesShare\Migrations\Migration0` → `src/Migrations/Migration0.php`), so the migration was never
+  found on Linux hosting.
+- `webtreesshare_request.gedcom_id`/`creator_user_id` now declared `unsigned()`, matching
+  `gedcom.gedcom_id`/`user.user_id` (both auto-increment, hence unsigned) — InnoDB otherwise rejects the
+  foreign key with errno 150.
