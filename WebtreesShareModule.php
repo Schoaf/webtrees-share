@@ -106,7 +106,7 @@ class WebtreesShareModule extends AbstractModule implements ModuleCustomInterfac
         View::registerNamespace($this->name(), $this->resourcesFolder() . 'views/');
 
         Registry::container()->get(MigrationService::class)
-            ->updateSchema('\WebtreesShare\Migrations', self::SCHEMA_SETTING, self::SCHEMA_VERSION);
+            ->updateSchema('WebtreesShare\Migrations', self::SCHEMA_SETTING, self::SCHEMA_VERSION);
     }
 
     public function resourcesFolder(): string
