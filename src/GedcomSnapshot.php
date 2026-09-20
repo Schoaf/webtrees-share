@@ -6,10 +6,14 @@ namespace WebtreesShare;
 
 use Fisharebest\Webtrees\Individual;
 
+use function array_flip;
+use function array_keys;
+use function implode;
 use function in_array;
 use function preg_match;
 use function preg_quote;
 use function preg_replace;
+use function sprintf;
 use function str_contains;
 use function strrpos;
 use function substr;
@@ -26,6 +30,45 @@ final class GedcomSnapshot
     private const array CONTEXT_SKIP_TAGS = [
         'NAME', 'SEX', 'BIRT', 'DEAT', 'FAMS', 'FAMC', 'HUSB', 'WIFE', 'CHIL', 'OBJE', 'CHAN', '_UID', 'RESN',
     ];
+
+    private const array GEDCOM_MONTHS = [
+        'JAN' => 1, 'FEB' => 2, 'MAR' => 3, 'APR' => 4, 'MAY' => 5, 'JUN' => 6,
+        'JUL' => 7, 'AUG' => 8, 'SEP' => 9, 'OCT' => 10, 'NOV' => 11, 'DEC' => 12,
+    ];
+
+    /**
+     * "12 MAR 1930" -> "1930-03-12" for an HTML date-picker's value attribute. Only handles a
+     * plain day-month-year date, on purpose: GEDCOM qualifiers ("ABT 1930", ranges, ...) are an
+     * editor-level nuance, not something to expect from a guest with no genealogy background -
+     * a date the picker can't represent is simply left for them to (re-)enter fresh.
+     */
+    public static function gedcomDateToIso(string $gedcom): string
+    {
+        $months = self::GEDCOM_MONTHS;
+
+        if (preg_match('/^(\d{1,2}) (' . implode('|', array_keys($months)) . ') (\d{3,4})$/', trim($gedcom), $match) === 1) {
+            return sprintf('%04d-%02d-%02d', (int) $match[3], $months[$match[2]], (int) $match[1]);
+        }
+
+        return '';
+    }
+
+    /**
+     * The reverse of gedcomDateToIso() - what a browser's <input type="date"> submits back.
+     */
+    public static function isoDateToGedcom(string $iso): string
+    {
+        if (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', trim($iso), $match) === 1) {
+            $months = array_flip(self::GEDCOM_MONTHS);
+            $month  = $months[(int) $match[2]] ?? null;
+
+            if ($month !== null) {
+                return sprintf('%d %s %d', (int) $match[3], $month, (int) $match[1]);
+            }
+        }
+
+        return '';
+    }
 
     /**
      * The current value of the fixed field set - used both to pre-fill the guest form

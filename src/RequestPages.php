@@ -190,14 +190,15 @@ trait RequestPages
         $data = json_decode($row->request_data, true);
 
         return $this->viewResponse($this->name() . '::request', [
-            'title'   => I18N::translate('Angaben ergänzen'),
-            'tree'    => $tree,
-            'token'   => $token,
-            'name'    => $data['name'] ?? '',
-            'fields'  => $data['fields'] ?? [],
-            'context' => $data['context'] ?? [],
-            'app_url' => $this->deepLinkUrl($request, $tree, $token),
-            'action'  => $this->actionUrl('RequestSubmit', $tree->name()),
+            'title'      => I18N::translate('Angaben ergänzen'),
+            'tree'       => $tree,
+            'tree_title' => $tree->title(),
+            'token'      => $token,
+            'name'       => $data['name'] ?? '',
+            'fields'     => $data['fields'] ?? [],
+            'context'    => $data['context'] ?? [],
+            'app_url'    => $this->deepLinkUrl($request, $tree, $token),
+            'action'     => $this->actionUrl('RequestSubmit', $tree->name()),
         ]);
     }
 
@@ -223,7 +224,14 @@ trait RequestPages
         $fields = [];
 
         foreach (WebtreesShareModule::FIELDS as $key => $definition) {
-            $fields[$key] = GedcomSnapshot::line($this->str($body, $key));
+            $raw = $this->str($body, $key);
+
+            // A conforming <input type="date"> submits "YYYY-MM-DD"; fall back to treating it
+            // as already-GEDCOM-ish free text (e.g. a browser without date-picker support, or a
+            // value round-tripped from a date the picker couldn't represent in the first place).
+            $fields[$key] = $definition['part'] === 'DATE'
+                ? (GedcomSnapshot::isoDateToGedcom($raw) ?: GedcomSnapshot::line($raw))
+                : GedcomSnapshot::line($raw);
         }
 
         $response_data = [

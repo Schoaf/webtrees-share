@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Fisharebest\Webtrees\I18N;
+use WebtreesShare\GedcomSnapshot;
 
 /**
  * @var string                $title
@@ -12,9 +13,18 @@ use Fisharebest\Webtrees\I18N;
  * @var list<array{tag: string, label: string, value: string}> $context
  * @var string                $app_url
  * @var string                $action
+ * @var string                $tree_title
  */
 
+$birt_date_iso = GedcomSnapshot::gedcomDateToIso($fields['BIRT_DATE'] ?? '');
+$deat_date_iso = GedcomSnapshot::gedcomDateToIso($fields['DEAT_DATE'] ?? '');
+
 ?>
+
+<div class="wtshare-brand">
+  <?php // TODO: app logo once we have the asset (see the Design-Speicherort session). ?>
+  <span><?= e($tree_title) ?></span>
+</div>
 
 <h1 class="wtshare-title"><?= e($title) ?></h1>
 <?php // $name is already-formatted HTML from webtrees' own fullName() (e.g. <span class="NAME">...) - escaping it here just shows the raw tags. ?>
@@ -26,7 +36,10 @@ use Fisharebest\Webtrees\I18N;
   <div class="wtshare-card">
     <div class="wtshare-field">
       <label for="wtshare-birt-date"><?= I18N::translate('Geburtsdatum') ?></label>
-      <input type="text" id="wtshare-birt-date" name="BIRT_DATE" value="<?= e($fields['BIRT_DATE'] ?? '') ?>">
+      <input type="date" id="wtshare-birt-date" name="BIRT_DATE" value="<?= e($birt_date_iso) ?>">
+      <?php if ($birt_date_iso === '' && ($fields['BIRT_DATE'] ?? '') !== '') : ?>
+        <p class="wtshare-hint"><?= I18N::translate('Bisheriger Wert: %s', e($fields['BIRT_DATE'])) ?></p>
+      <?php endif; ?>
     </div>
     <div class="wtshare-field">
       <label for="wtshare-birt-plac"><?= I18N::translate('Geburtsort') ?></label>
@@ -34,7 +47,10 @@ use Fisharebest\Webtrees\I18N;
     </div>
     <div class="wtshare-field">
       <label for="wtshare-deat-date"><?= I18N::translate('Sterbedatum') ?></label>
-      <input type="text" id="wtshare-deat-date" name="DEAT_DATE" value="<?= e($fields['DEAT_DATE'] ?? '') ?>">
+      <input type="date" id="wtshare-deat-date" name="DEAT_DATE" value="<?= e($deat_date_iso) ?>">
+      <?php if ($deat_date_iso === '' && ($fields['DEAT_DATE'] ?? '') !== '') : ?>
+        <p class="wtshare-hint"><?= I18N::translate('Bisheriger Wert: %s', e($fields['DEAT_DATE'])) ?></p>
+      <?php endif; ?>
     </div>
     <div class="wtshare-field">
       <label for="wtshare-deat-plac"><?= I18N::translate('Sterbeort') ?></label>
