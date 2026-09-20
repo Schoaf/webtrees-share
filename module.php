@@ -14,6 +14,7 @@ namespace WebtreesShare;
 
 use function is_file;
 use function spl_autoload_register;
+use function str_replace;
 use function str_starts_with;
 use function strlen;
 use function substr;
@@ -22,7 +23,10 @@ spl_autoload_register(static function (string $class): void {
     $prefix = __NAMESPACE__ . '\\';
 
     if (str_starts_with($class, $prefix)) {
-        $file = __DIR__ . '/src/' . substr($class, strlen($prefix)) . '.php';
+        // Sub-namespaces (e.g. WebtreesShare\Migrations\Migration0) map to subdirectories -
+        // the remaining "\" separators need converting to "/" for the filesystem path.
+        $relative = str_replace('\\', '/', substr($class, strlen($prefix)));
+        $file     = __DIR__ . '/src/' . $relative . '.php';
 
         if (is_file($file)) {
             require $file;
