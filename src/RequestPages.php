@@ -180,6 +180,7 @@ trait RequestPages
         if ($row === null || (int) $row->gedcom_id !== $tree->id() || $this->isExpired($row)) {
             return $this->viewResponse($this->name() . '::request-invalid', [
                 'title' => I18N::translate('Link nicht mehr gültig'),
+                'tree'  => $tree,
             ]);
         }
 
@@ -187,6 +188,7 @@ trait RequestPages
 
         return $this->viewResponse($this->name() . '::request', [
             'title'   => I18N::translate('Angaben ergänzen'),
+            'tree'    => $tree,
             'token'   => $token,
             'name'    => $data['name'] ?? '',
             'fields'  => $data['fields'] ?? [],
@@ -210,6 +212,7 @@ trait RequestPages
         if ($row === null || (int) $row->gedcom_id !== $tree->id() || $this->isExpired($row)) {
             return $this->viewResponse($this->name() . '::request-invalid', [
                 'title' => I18N::translate('Link nicht mehr gültig'),
+                'tree'  => $tree,
             ]);
         }
 
@@ -242,6 +245,7 @@ trait RequestPages
 
         return $this->viewResponse($this->name() . '::request-thanks', [
             'title'           => I18N::translate('Danke!'),
+            'tree'            => $tree,
             'suggestions'     => $suggestions,
             'token'           => $token,
             'continue_action' => $this->actionUrl('RequestContinue', $tree->name()),
@@ -325,6 +329,7 @@ trait RequestPages
 
         return $this->viewResponse($this->name() . '::request-review', [
             'title'     => I18N::translate('Antwort prüfen'),
+            'tree'      => $tree,
             'row'       => $row,
             'name'      => $individual instanceof Individual ? $individual->fullName() : ($request_data['name'] ?? $row->xref),
             'compare'   => $compare,
