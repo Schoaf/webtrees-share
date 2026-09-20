@@ -23,9 +23,11 @@ class Migration0 implements MigrationInterface
 
         DB::schema()->create('webtreesshare_request', static function (Blueprint $table): void {
             $table->increments('id');
-            $table->integer('gedcom_id');
+            // unsigned: must match gedcom.gedcom_id/user.user_id exactly (both auto-increment,
+            // so Illuminate makes them unsigned) - InnoDB rejects a FK whose signedness differs.
+            $table->integer('gedcom_id')->unsigned();
             $table->string('xref', 20);
-            $table->integer('creator_user_id');
+            $table->integer('creator_user_id')->unsigned();
             $table->string('token', 64);
             $table->text('request_data');
             $table->text('response_data')->nullable();
