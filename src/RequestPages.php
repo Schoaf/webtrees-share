@@ -19,6 +19,7 @@ use Fisharebest\Webtrees\Tree;
 use Fisharebest\Webtrees\TreeUser;
 use Fisharebest\Webtrees\Validator;
 use Illuminate\Support\Str;
+use League\Flysystem\FilesystemException;
 use League\Flysystem\FilesystemOperator;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -187,7 +188,8 @@ trait RequestPages
             ]);
         }
 
-        $data = json_decode($row->request_data, true);
+        $data       = json_decode($row->request_data, true);
+        $photo      = $data['photo'] ?? '';
 
         return $this->viewResponse($this->name() . '::request', [
             'title'      => I18N::translate('Angaben ergänzen'),
@@ -197,6 +199,7 @@ trait RequestPages
             'name'       => $data['name'] ?? '',
             'fields'     => $data['fields'] ?? [],
             'context'    => $data['context'] ?? [],
+            'photo_url'  => $photo !== '' ? $this->actionUrl('RequestExistingPhoto', $tree->name(), ['token' => $token]) : '',
             'app_url'    => $this->deepLinkUrl($request, $tree, $token),
             'action'     => $this->actionUrl('RequestSubmit', $tree->name()),
         ]);
@@ -229,7 +232,7 @@ trait RequestPages
             // A conforming <input type="date"> submits "YYYY-MM-DD"; fall back to treating it
             // as already-GEDCOM-ish free text (e.g. a browser without date-picker support, or a
             // value round-tripped from a date the picker couldn't represent in the first place).
-            $fields[$key] = $definition['part'] === 'DATE'
+            $fields[$key] = ($definition['part'] ?? null) === 'DATE'
                 ? (GedcomSnapshot::isoDateToGedcom($raw) ?: GedcomSnapshot::line($raw))
                 : GedcomSnapshot::line($raw);
         }
@@ -383,6 +386,37 @@ trait RequestPages
     }
 
     /**
+     * Streams the person's *existing* photo snapshot to whoever holds the request token - the
+     * guest has no session and can't otherwise reach the tree's protected media folder, so this
+     * serves the copy taken at CreateRequest time instead of the live file.
+     */
+    public function getRequestExistingPhotoAction(ServerRequestInterface $request): ResponseInterface
+    {
+        $tree  = Validator::attributes($request)->tree();
+        $token = Validator::queryParams($request)->string('token', '');
+        $row   = $this->findByToken($token);
+
+        if ($row === null || (int) $row->gedcom_id !== $tree->id() || $this->isExpired($row)) {
+            return $this->error(404, 'not-found');
+        }
+
+        $data       = json_decode($row->request_data, true);
+        $photo      = $data['photo'] ?? '';
+        $filesystem = $this->existingPhotoFilesystem();
+
+        if ($photo === '' || !$filesystem->fileExists($photo)) {
+            return $this->error(404, 'not-found');
+        }
+
+        $extension  = pathinfo($photo, PATHINFO_EXTENSION);
+        $mime_types = ['jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png', 'gif' => 'image/gif', 'webp' => 'image/webp'];
+
+        return response($filesystem->read($photo), 200, [
+            'content-type' => $mime_types[$extension] ?? 'application/octet-stream',
+        ]);
+    }
+
+    /**
      * Apply the accepted fields as a normal edit, under the creator's own session - exactly
      * as if they had received the information by phone and typed it in themselves.
      */
@@ -411,7 +445,7 @@ trait RequestPages
             $value = $response_data['fields'][$key] ?? '';
 
             if ($value !== '' && !empty($accept[$key])) {
-                GedcomSnapshot::applyField($individual, $definition['tag'], $definition['part'], $value);
+                GedcomSnapshot::applyField($individual, $definition, $value);
             }
         }
 
@@ -474,6 +508,7 @@ trait RequestPages
             'name'    => strip_tags($individual->fullName()),
             'fields'  => GedcomSnapshot::fields($individual),
             'context' => GedcomSnapshot::context($individual),
+            'photo'   => $this->snapshotExistingPhoto($tree, $individual),
         ];
 
         $token      = Str::random(32);
@@ -637,7 +672,7 @@ trait RequestPages
             $missing = 0;
 
             foreach (WebtreesShareModule::FIELDS as $definition) {
-                if (GedcomSnapshot::factPart($relative, $definition['tag'], $definition['part']) === '') {
+                if (GedcomSnapshot::fieldValue($relative, $definition) === '') {
                     $missing++;
                 }
             }
@@ -693,6 +728,42 @@ trait RequestPages
     private function pendingPhotoFilesystem(): FilesystemOperator
     {
         return Registry::filesystem()->data(WebtreesShareModule::PENDING_PHOTO_PATH);
+    }
+
+    /**
+     * Holding area for a snapshot of a person's *existing* photo - separate from
+     * pendingPhotoFilesystem() (that one holds guest submissions) so the two can never collide.
+     */
+    private function existingPhotoFilesystem(): FilesystemOperator
+    {
+        return Registry::filesystem()->data(WebtreesShareModule::EXISTING_PHOTO_PATH);
+    }
+
+    /**
+     * Copy the person's current highlighted photo (if any) into the existing-photo holding area,
+     * so a signed-out guest can see it without needing access to the tree's protected media
+     * folder. Returns the stored filename, or '' if there is no photo to snapshot.
+     */
+    private function snapshotExistingPhoto(Tree $tree, Individual $individual): string
+    {
+        $media_file = $individual->findHighlightedMediaFile();
+
+        if ($media_file === null || !$media_file->isImage() || !$media_file->fileExists()) {
+            return '';
+        }
+
+        try {
+            $content = $tree->mediaFilesystem()->read($media_file->filename());
+        } catch (FilesystemException) {
+            return '';
+        }
+
+        $extension = pathinfo($media_file->filename(), PATHINFO_EXTENSION);
+        $filename  = Str::random(24) . ($extension === '' ? '' : '.' . $extension);
+
+        $this->existingPhotoFilesystem()->write($filename, $content);
+
+        return $filename;
     }
 
     /**

@@ -14,6 +14,7 @@ use WebtreesShare\GedcomSnapshot;
  * @var string                $app_url
  * @var string                $action
  * @var string                $tree_title
+ * @var string                $photo_url
  */
 
 $birt_date_iso = GedcomSnapshot::gedcomDateToIso($fields['BIRT_DATE'] ?? '');
@@ -33,7 +34,25 @@ $deat_date_iso = GedcomSnapshot::gedcomDateToIso($fields['DEAT_DATE'] ?? '');
 <form method="post" action="<?= e($action) ?>" enctype="multipart/form-data">
   <input type="hidden" name="token" value="<?= e($token) ?>">
 
+  <?php if ($photo_url !== '') : ?>
+    <div class="wtshare-card" style="text-align: center;">
+      <img src="<?= e($photo_url) ?>" alt="" style="max-width: 160px; max-height: 160px; border-radius: 50%; object-fit: cover;">
+    </div>
+  <?php endif; ?>
+
   <div class="wtshare-card">
+    <div class="wtshare-field">
+      <label for="wtshare-givn"><?= I18N::translate('Vorname') ?></label>
+      <input type="text" id="wtshare-givn" name="GIVN" value="<?= e($fields['GIVN'] ?? '') ?>">
+    </div>
+    <div class="wtshare-field">
+      <label for="wtshare-surn"><?= I18N::translate('Nachname') ?></label>
+      <input type="text" id="wtshare-surn" name="SURN" value="<?= e($fields['SURN'] ?? '') ?>">
+    </div>
+    <div class="wtshare-field">
+      <label for="wtshare-titl"><?= I18N::translate('Titel') ?></label>
+      <input type="text" id="wtshare-titl" name="TITL" value="<?= e($fields['TITL'] ?? '') ?>">
+    </div>
     <div class="wtshare-field">
       <label for="wtshare-birt-date"><?= I18N::translate('Geburtsdatum') ?></label>
       <input type="date" id="wtshare-birt-date" name="BIRT_DATE" value="<?= e($birt_date_iso) ?>">

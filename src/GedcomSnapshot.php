@@ -81,10 +81,25 @@ final class GedcomSnapshot
         $fields = [];
 
         foreach (WebtreesShareModule::FIELDS as $key => $definition) {
-            $fields[$key] = self::factPart($individual, $definition['tag'], $definition['part']);
+            $fields[$key] = self::fieldValue($individual, $definition);
         }
 
         return $fields;
+    }
+
+    /**
+     * Read one WebtreesShareModule::FIELDS entry, dispatching on its 'kind' (see the constant's
+     * docblock for the three shapes).
+     *
+     * @param array{kind: string, tag: string, part: string|null} $definition
+     */
+    public static function fieldValue(Individual $individual, array $definition): string
+    {
+        if ($definition['kind'] === 'value') {
+            return self::factValue($individual, $definition['tag']);
+        }
+
+        return self::factPart($individual, $definition['tag'], $definition['part'] ?? '');
     }
 
     /**
@@ -151,11 +166,36 @@ final class GedcomSnapshot
     }
 
     /**
-     * Create or update a fact's DATE/PLAC sub-line with a guest-submitted value.
-     * Deliberately narrow: this module only ever touches BIRT/DEAT DATE/PLAC (see
-     * WebtreesShareModule::FIELDS), never arbitrary facts.
+     * The level-1 value of a fact whose value sits on the tag line itself, e.g.
+     * factValue($indi, 'TITL') for "1 TITL Dr.". Returns '' if the fact doesn't exist.
      */
-    public static function applyField(Individual $individual, string $tag, string $part, string $value): void
+    private static function factValue(Individual $individual, string $tag): string
+    {
+        $fact = $individual->facts([$tag], false, null, true)->first();
+
+        return $fact === null ? '' : trim($fact->value());
+    }
+
+    /**
+     * Apply one WebtreesShareModule::FIELDS entry with a guest-submitted value, dispatching on
+     * 'kind'. Deliberately narrow: this module only ever touches the fixed field set, never
+     * arbitrary facts.
+     *
+     * @param array{kind: string, tag: string, part: string|null} $definition
+     */
+    public static function applyField(Individual $individual, array $definition, string $value): void
+    {
+        match ($definition['kind']) {
+            'value'     => self::applyFactValue($individual, $definition['tag'], $value),
+            'name_part' => self::applyNamePart($individual, $definition['part'], $value),
+            default     => self::applySubline($individual, $definition['tag'], $definition['part'], $value),
+        };
+    }
+
+    /**
+     * Create or update a fact's DATE/PLAC-style sub-line with a guest-submitted value.
+     */
+    private static function applySubline(Individual $individual, string $tag, string $part, string $value): void
     {
         $value = self::line($value);
         $fact  = $individual->facts([$tag], false, null, true)->first();
@@ -178,6 +218,65 @@ final class GedcomSnapshot
         } elseif ($value !== '') {
             $gedcom .= "\n2 {$part} {$value}";
         }
+
+        $individual->updateFact($fact->id(), $gedcom, true);
+    }
+
+    /**
+     * Create or update a fact whose value sits directly on the level-1 tag line, e.g. "1 TITL Dr.".
+     * A blank submitted value is left alone rather than clearing an existing title - a guest
+     * leaving this field empty means "I don't know", not "please remove it".
+     */
+    private static function applyFactValue(Individual $individual, string $tag, string $value): void
+    {
+        $value = self::line($value);
+
+        if ($value === '') {
+            return;
+        }
+
+        $fact = $individual->facts([$tag], false, null, true)->first();
+
+        if ($fact === null) {
+            $individual->createFact("1 {$tag} {$value}", true);
+
+            return;
+        }
+
+        $gedcom = (string) preg_replace('/^1 ' . preg_quote($tag, '/') . '[^\n]*/', '1 ' . $tag . ' ' . $value, $fact->gedcom(), 1);
+
+        $individual->updateFact($fact->id(), $gedcom, true);
+    }
+
+    /**
+     * Update a NAME sub-line (GIVN/SURN) and rebuild the primary "1 NAME ..." line from the
+     * result, so the display name (built from that primary value) stays consistent with
+     * whichever part the guest corrected. Does nothing if the individual has no NAME fact at
+     * all - not realistic for a real record, and there is no sensible fact to attach a
+     * given-name/surname to otherwise.
+     */
+    private static function applyNamePart(Individual $individual, string $part, string $value): void
+    {
+        $value = self::line($value);
+        $fact  = $individual->facts(['NAME'], false, null, true)->first();
+
+        if ($fact === null) {
+            return;
+        }
+
+        $gedcom  = $fact->gedcom();
+        $pattern = '/\n2 ' . preg_quote($part, '/') . '.*(\n[3-9] .*)*/';
+
+        if (preg_match($pattern, $gedcom) === 1) {
+            $gedcom = (string) preg_replace($pattern, $value === '' ? '' : "\n2 {$part} {$value}", $gedcom, 1);
+        } elseif ($value !== '') {
+            $gedcom .= "\n2 {$part} {$value}";
+        }
+
+        $givn    = $part === 'GIVN' ? $value : self::linePart($gedcom, 'GIVN');
+        $surn    = $part === 'SURN' ? $value : self::linePart($gedcom, 'SURN');
+        $primary = trim($givn . ' /' . $surn . '/');
+        $gedcom  = (string) preg_replace('/^1 NAME[^\n]*/', '1 NAME ' . $primary, $gedcom, 1);
 
         $individual->updateFact($fact->id(), $gedcom, true);
     }

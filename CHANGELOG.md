@@ -33,3 +33,24 @@ Initial version.
 - `webtreesshare_request.gedcom_id`/`creator_user_id` now declared `unsigned()`, matching
   `gedcom.gedcom_id`/`user.user_id` (both auto-increment, hence unsigned) — InnoDB otherwise rejects the
   foreign key with errno 150.
+- Every `viewResponse()` call now passes `tree` — the base layout needs it and `ViewResponseTrait` doesn't
+  supply it automatically; the public guest pages were fataling without it.
+- The person's name is stored as plain text (`strip_tags()`), not `fullName()`'s pre-formatted HTML — it
+  was leaking raw markup into plain-text emails and getting double-escaped on display.
+
+### Guest page redesign, real date pickers, more fields
+
+- The three guest-facing pages (Request/RequestSubmit/RequestContinue) render through a new standalone
+  layout with no webtrees site chrome at all - not appropriate for a visitor with no account - styled to
+  match the companion app.
+- Date fields use a real `<input type="date">`, converting to/from GEDCOM's `"12 MAR 1930"` format
+  (`GedcomSnapshot::gedcomDateToIso()`/`isoDateToGedcom()`); a date the picker can't represent (a
+  qualifier, a range, ...) is left blank with the old value shown as a hint.
+- The guest form now also asks for given name, surname and title, alongside birth/death date and place.
+  `WebtreesShareModule::FIELDS` entries carry a `kind` (`subline`, `value`, or `name_part`) since these
+  don't all live in the same place in the GEDCOM - a title's value sits on its own fact line, and a
+  changed given name/surname also rebuilds the record's primary `NAME` line so the display name stays
+  consistent.
+- The person's *existing* photo, if any, is snapshotted at request time the same way the other fields
+  are, and shown on the guest page (`RequestExistingPhoto`) - without this, a signed-out guest had no way
+  to see it, since the tree's media folder isn't reachable without an account.

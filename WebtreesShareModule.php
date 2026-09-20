@@ -67,13 +67,25 @@ class WebtreesShareModule extends AbstractModule implements ModuleCustomInterfac
     // never the tree's real media folder - nothing is added to the tree until the requester accepts it).
     public const string PENDING_PHOTO_PATH = 'webtreesshare/pending-photos/';
 
-    // The fixed set of facts a guest can see/complete. Keep this small and explicit -
-    // this is a simple "fill in the basics" form, not a general fact editor.
+    // Where a snapshot of the person's *existing* photo is held, so a signed-out guest can see
+    // it without needing access to the tree's protected media folder. Same idea as
+    // PENDING_PHOTO_PATH, kept separate so the two never collide or get confused for each other.
+    public const string EXISTING_PHOTO_PATH = 'webtreesshare/existing-photos/';
+
+    // The fixed set of facts a guest can see/complete. Keep this small and explicit - this is a
+    // simple "fill in the basics" form, not a general fact editor. Three shapes, per 'kind':
+    //   'subline'   - value sits on a level-2 line under a level-1 fact (tag+part), e.g. "2 DATE ..." under "1 BIRT".
+    //   'value'     - value sits directly on the level-1 tag line itself, e.g. "1 TITL Dr.".
+    //   'name_part' - a NAME sub-line (GIVN/SURN); reads like 'subline', but writing it also
+    //                 rebuilds the primary "1 NAME ..." line so the display name stays consistent.
     public const array FIELDS = [
-        'BIRT_DATE' => ['tag' => 'BIRT', 'part' => 'DATE'],
-        'BIRT_PLAC' => ['tag' => 'BIRT', 'part' => 'PLAC'],
-        'DEAT_DATE' => ['tag' => 'DEAT', 'part' => 'DATE'],
-        'DEAT_PLAC' => ['tag' => 'DEAT', 'part' => 'PLAC'],
+        'GIVN'      => ['kind' => 'name_part', 'tag' => 'NAME', 'part' => 'GIVN'],
+        'SURN'      => ['kind' => 'name_part', 'tag' => 'NAME', 'part' => 'SURN'],
+        'TITL'      => ['kind' => 'value', 'tag' => 'TITL', 'part' => null],
+        'BIRT_DATE' => ['kind' => 'subline', 'tag' => 'BIRT', 'part' => 'DATE'],
+        'BIRT_PLAC' => ['kind' => 'subline', 'tag' => 'BIRT', 'part' => 'PLAC'],
+        'DEAT_DATE' => ['kind' => 'subline', 'tag' => 'DEAT', 'part' => 'DATE'],
+        'DEAT_PLAC' => ['kind' => 'subline', 'tag' => 'DEAT', 'part' => 'PLAC'],
     ];
 
     public function __construct()
