@@ -272,12 +272,13 @@ trait RequestPages
 
         $this->notifyCreatorOfResponse($tree, $row, $response_data);
 
-        $individual  = Registry::individualFactory()->make($row->xref, $tree);
-        $suggestions = $individual instanceof Individual
-            ? $this->relativeSuggestions($individual)
-            : [];
-
+        // Frozen at CreateRequest time by the authenticated creator, same as every other field
+        // of the snapshot - deliberately NOT computed here via a live Individual/family-tree
+        // lookup, which would mean an anonymous guest's own submission triggers unauthenticated
+        // tree traversal (and could surface relatives' names that were never part of what the
+        // creator actually chose to share via this link).
         $request_data = json_decode($row->request_data, true);
+        $suggestions  = $request_data['suggestions'] ?? [];
 
         return $this->viewResponse($this->name() . '::request-thanks', [
             'title'           => I18N::translate('Danke!'),
@@ -724,6 +725,10 @@ trait RequestPages
             'fields'          => GedcomSnapshot::fields($individual),
             'context'         => GedcomSnapshot::context($individual),
             'photo'           => $this->snapshotExistingPhoto($tree, $individual),
+            // Computed here, under the creator's own session, for the same reason every other
+            // field above is a frozen snapshot: the guest's own (unauthenticated) submission
+            // should never need to walk live family-tree relationships itself.
+            'suggestions'     => $this->relativeSuggestions($individual),
         ];
 
         $token      = Str::random(32);
