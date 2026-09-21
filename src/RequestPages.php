@@ -7,6 +7,8 @@ namespace WebtreesShare;
 use Fisharebest\Webtrees\Auth;
 use Fisharebest\Webtrees\DB;
 use Fisharebest\Webtrees\GuestUser;
+use Fisharebest\Webtrees\Http\Controllers\Login;
+use Fisharebest\Webtrees\Http\Controllers\TreePage;
 use Fisharebest\Webtrees\I18N;
 use Fisharebest\Webtrees\Individual;
 use Fisharebest\Webtrees\Registry;
@@ -36,6 +38,7 @@ use function nl2br;
 use function pathinfo;
 use function redirect;
 use function response;
+use function route;
 use function sha1;
 use function strip_tags;
 use function strtotime;
@@ -153,8 +156,12 @@ trait RequestPages
             $recipient_name,
         );
 
+        // From: webtrees' own configured sender, never the requester's personal address - an
+        // email whose From: doesn't match the domain it's actually relayed through fails
+        // SPF/DKIM and gets blocked by the recipient's mail provider. Reply-To stays the
+        // requester, so a reply still reaches them directly.
         $sent = Registry::container()->get(EmailService::class)->send(
-            Auth::user(),
+            new SiteUser(),
             new GuestUser($recipient_email, $recipient_name !== '' ? $recipient_name : $recipient_email),
             Auth::user(),
             $this->requestEmailSubject($data['name'] ?? ''),
@@ -195,6 +202,7 @@ trait RequestPages
             'title'           => I18N::translate('Angaben ergänzen'),
             'tree'            => $tree,
             'tree_title'      => $tree->title(),
+            'tree_url'        => $this->treeUrl($tree),
             'requester_name'  => $data['requester_name'] ?? '',
             'token'           => $token,
             'name'            => $data['name'] ?? '',
@@ -239,9 +247,11 @@ trait RequestPages
         }
 
         $response_data = [
-            'fields' => $fields,
-            'note'   => GedcomSnapshot::line($this->str($body, 'note')),
-            'photo'  => $this->storePendingPhoto($request->getUploadedFiles()['photo'] ?? null),
+            'fields'          => $fields,
+            'note'            => GedcomSnapshot::line($this->str($body, 'note')),
+            'photo'           => $this->storePendingPhoto($request->getUploadedFiles()['photo'] ?? null),
+            'responder_name'  => GedcomSnapshot::line($this->str($body, 'responder_name')),
+            'responder_email' => GedcomSnapshot::line($this->str($body, 'responder_email')),
         ];
 
         DB::table('webtreesshare_request')
@@ -252,16 +262,20 @@ trait RequestPages
                 'responded_at'  => date('Y-m-d H:i:s'),
             ]);
 
-        $this->notifyCreatorOfResponse($tree, $row);
+        $this->notifyCreatorOfResponse($tree, $row, $response_data);
 
         $individual  = Registry::individualFactory()->make($row->xref, $tree);
         $suggestions = $individual instanceof Individual
             ? $this->relativeSuggestions($individual)
             : [];
 
+        $request_data = json_decode($row->request_data, true);
+
         return $this->viewResponse($this->name() . '::request-thanks', [
             'title'           => I18N::translate('Danke!'),
             'tree'            => $tree,
+            'tree_url'        => $this->treeUrl($tree),
+            'requester_name'  => $request_data['requester_name'] ?? '',
             'suggestions'     => $suggestions,
             'token'           => $token,
             'continue_action' => $this->actionUrl('RequestContinue', $tree->name()),
@@ -312,17 +326,35 @@ trait RequestPages
                 ->orderByDesc('responded_at')
                 ->get();
 
+            $urls = [];
+
+            foreach ($rows as $row) {
+                $urls[$row->id] = $this->actionUrl('RequestReview', $tree->name(), ['id' => $row->id]);
+            }
+
             return $this->viewResponse($this->name() . '::request-review-list', [
                 'title' => I18N::translate('Anfragen'),
                 'tree'  => $tree,
                 'rows'  => $rows,
                 'names' => $this->namesFor($tree, $rows),
+                'urls'  => $urls,
             ]);
         }
 
         $row = DB::table('webtreesshare_request')->where('id', '=', $id)->first();
 
-        if ($row === null || (int) $row->creator_user_id !== (int) Auth::id() || (int) $row->gedcom_id !== $tree->id()) {
+        if ($row === null || (int) $row->gedcom_id !== $tree->id()) {
+            return $this->error(404, 'not-found');
+        }
+
+        if ((int) $row->creator_user_id !== (int) Auth::id()) {
+            // Most likely cause: this is the "you got a response" email's link, opened in a
+            // browser/device with no active webtrees session - send them to log in and straight
+            // back here, rather than a bare 404 for what's actually just "please sign in".
+            if (Auth::id() === null) {
+                return redirect(route(Login::class, ['url' => (string) $request->getUri()]));
+            }
+
             return $this->error(404, 'not-found');
         }
 
@@ -552,6 +584,11 @@ trait RequestPages
         return $this->actionUrl('Request', $tree->name(), ['token' => $token]);
     }
 
+    private function treeUrl(Tree $tree): string
+    {
+        return route(TreePage::class, ['tree' => $tree->name()]);
+    }
+
     /**
      * Best-effort deep link into the app, mirroring webtreesand-api's pairing link
      * (scheme "webtreesand", see modules_v4/webtreesand-api/src/AppPages.php:181).
@@ -616,7 +653,10 @@ trait RequestPages
         return implode("\n", $lines);
     }
 
-    private function notifyCreatorOfResponse(Tree $tree, object $row): void
+    /**
+     * @param array{responder_name?: string, responder_email?: string} $response_data
+     */
+    private function notifyCreatorOfResponse(Tree $tree, object $row, array $response_data): void
     {
         $creator = Registry::container()->get(UserService::class)->find((int) $row->creator_user_id);
 
@@ -628,7 +668,15 @@ trait RequestPages
         $name       = $data['name'] ?? $row->xref;
         $review_url = $this->actionUrl('RequestReview', $tree->name(), ['id' => $row->id]);
 
-        $text = I18N::translate('Du hast eine Antwort auf Deine Anfrage zu %s bekommen.', $name) . "\n\n" . $review_url;
+        // Who answered, if they said - a guest is never required to give their name/email, so
+        // this is frequently blank.
+        $responder = $response_data['responder_name'] ?? '';
+        $responder = $responder !== '' ? $responder : ($response_data['responder_email'] ?? '');
+
+        $text = $responder !== ''
+            ? I18N::translate('Du hast eine Antwort von %1$s auf Deine Anfrage zu %2$s bekommen.', $responder, $name)
+            : I18N::translate('Du hast eine Antwort auf Deine Anfrage zu %s bekommen.', $name);
+        $text .= "\n\n" . $review_url;
 
         Registry::container()->get(EmailService::class)->send(
             new SiteUser(),

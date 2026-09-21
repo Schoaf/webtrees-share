@@ -6,6 +6,8 @@ use Fisharebest\Webtrees\I18N;
 
 /**
  * @var string $title
+ * @var string $tree_url
+ * @var string $requester_name
  * @var list<array{xref: string, name: string, missing: int}> $suggestions
  * @var string $token
  * @var string $continue_action
@@ -16,9 +18,14 @@ use Fisharebest\Webtrees\I18N;
 <h1 class="wtshare-title"><?= e($title) ?></h1>
 
 <div class="wtshare-card">
-  <p style="margin: 0; color: var(--text-secondary);">
-    <?= I18N::translate('Deine Angaben wurden übermittelt und werden geprüft. Vielen Dank für Deine Hilfe!') ?>
+  <p style="margin: 0 0 12px; color: var(--text-secondary);">
+    <?php if ($requester_name !== '') : ?>
+      <?= I18N::translate('Deine Angaben wurden an %s übermittelt. Vielen Dank für Deine Hilfe!', e($requester_name)) ?>
+    <?php else : ?>
+      <?= I18N::translate('Deine Angaben wurden übermittelt. Vielen Dank für Deine Hilfe!') ?>
+    <?php endif; ?>
   </p>
+  <a href="<?= e($tree_url) ?>"><?= I18N::translate('Stammbaum hier ansehen') ?></a>
 </div>
 
 <?php if ($suggestions !== []) : ?>

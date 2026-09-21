@@ -64,9 +64,55 @@ declare(strict_types=1);
       font-weight: 500;
       color: var(--text-tertiary);
       margin-bottom: 20px;
+      text-decoration: none;
+      width: fit-content;
     }
 
     .wtshare-logo { height: 22px; width: auto; }
+
+    .wtshare-photo-wrap {
+      position: relative;
+      display: inline-block;
+    }
+
+    .wtshare-photo {
+      display: block;
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .wtshare-photo-placeholder {
+      background: var(--background);
+      border: 1px solid var(--divider);
+    }
+
+    .wtshare-photo-upload {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: #FFFFFF;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      line-height: 1;
+      cursor: pointer;
+      border: 2px solid var(--surface);
+    }
+
+    .wtshare-photo-input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      opacity: 0;
+    }
 
     .wtshare-hint {
       font-size: 14px;
@@ -116,7 +162,6 @@ declare(strict_types=1);
     .wtshare-field input[type="date"],
     .wtshare-field input[type="file"],
     .wtshare-field textarea {
-      width: 100%;
       font: inherit;
       font-size: 16px;
       color: var(--text-primary);
@@ -126,8 +171,16 @@ declare(strict_types=1);
       padding: 12px;
     }
 
+    .wtshare-field input[type="text"],
+    .wtshare-field input[type="file"],
+    .wtshare-field textarea {
+      width: 100%;
+    }
+
     .wtshare-field input[type="date"] {
-      min-height: 48px;
+      width: auto;
+      max-width: 100%;
+      text-align: left;
     }
 
     .wtshare-field input[type="text"]:focus,

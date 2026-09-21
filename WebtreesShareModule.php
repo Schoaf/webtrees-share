@@ -11,6 +11,7 @@ use Fisharebest\Webtrees\Menu;
 use Fisharebest\Webtrees\Module\AbstractModule;
 use Fisharebest\Webtrees\Module\ModuleCustomInterface;
 use Fisharebest\Webtrees\Module\ModuleCustomTrait;
+use Fisharebest\Webtrees\Module\ModuleGlobalInterface;
 use Fisharebest\Webtrees\Module\ModuleMenuInterface;
 use Fisharebest\Webtrees\Module\ModuleMenuTrait;
 use Fisharebest\Webtrees\Registry;
@@ -45,7 +46,7 @@ use function route;
  * relative" feature should check whether this module resolves (see getInfoAction) before
  * showing it, since it is a separate, optional module.
  */
-class WebtreesShareModule extends AbstractModule implements ModuleCustomInterface, ModuleMenuInterface
+class WebtreesShareModule extends AbstractModule implements ModuleCustomInterface, ModuleMenuInterface, ModuleGlobalInterface
 {
     use ModuleCustomTrait;
     use ModuleMenuTrait;
@@ -129,6 +130,22 @@ class WebtreesShareModule extends AbstractModule implements ModuleCustomInterfac
     public function defaultMenuOrder(): int
     {
         return 100;
+    }
+
+    public function bodyContent(): string
+    {
+        return '';
+    }
+
+    /**
+     * The "webtrees" theme draws every top-level menu icon via a `content: url(...)` rule keyed
+     * to the menu's own CSS class (see e.g. .menu-tree, .menu-chart in webtrees.min.css) - a
+     * custom module's menu class isn't in that stylesheet, so without this it would render with
+     * no icon at all. A plain heart outline matches the app's own "ask for help" icon.
+     */
+    public function headContent(): string
+    {
+        return '<style>.menu-webtreesshare .nav-link:before{content:url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'25\' height=\'25\' viewBox=\'0 0 24 24\' fill=\'%235d6779\'%3E%3Cpath d=\'M12 21s-6.7-4.35-9.3-8.3C1.1 10.5 1.7 7.4 4.2 5.9c2-1.2 4.4-.7 5.8 1 .7.8 1.3 1.7 2 2.9.7-1.2 1.3-2.1 2-2.9 1.4-1.7 3.8-2.2 5.8-1 2.5 1.5 3.1 4.6 1.5 6.8C18.7 16.65 12 21 12 21z\'/%3E%3C/svg%3E")}</style>';
     }
 
     /**

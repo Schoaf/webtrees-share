@@ -14,6 +14,7 @@ use WebtreesShare\GedcomSnapshot;
  * @var string                $app_url
  * @var string                $action
  * @var string                $tree_title
+ * @var string                $tree_url
  * @var string                $requester_name
  * @var string                $photo_url
  */
@@ -23,10 +24,10 @@ $deat_date_iso = GedcomSnapshot::gedcomDateToIso($fields['DEAT_DATE'] ?? '');
 
 ?>
 
-<div class="wtshare-brand">
+<a class="wtshare-brand" href="<?= e($tree_url) ?>">
   <img class="wtshare-logo" src="/modules_v4/webtrees-share/resources/img/logo.png" alt="">
   <span><?= e($tree_title) ?></span>
-</div>
+</a>
 
 <h1 class="wtshare-title"><?= e($title) ?></h1>
 <?php if ($requester_name !== '') : ?>
@@ -39,11 +40,17 @@ $deat_date_iso = GedcomSnapshot::gedcomDateToIso($fields['DEAT_DATE'] ?? '');
   <?= csrf_field() ?>
   <input type="hidden" name="token" value="<?= e($token) ?>">
 
-  <?php if ($photo_url !== '') : ?>
-    <div class="wtshare-card" style="text-align: center;">
-      <img src="<?= e($photo_url) ?>" alt="" style="max-width: 160px; max-height: 160px; border-radius: 50%; object-fit: cover;">
+  <div class="wtshare-card" style="text-align: center;">
+    <div class="wtshare-photo-wrap">
+      <?php if ($photo_url !== '') : ?>
+        <img class="wtshare-photo" src="<?= e($photo_url) ?>" alt="">
+      <?php else : ?>
+        <div class="wtshare-photo wtshare-photo-placeholder"></div>
+      <?php endif; ?>
+      <label for="wtshare-photo" class="wtshare-photo-upload" title="<?= e(I18N::translate('Foto hinzufügen')) ?>">+</label>
+      <input type="file" id="wtshare-photo" name="photo" accept="image/*" class="wtshare-photo-input">
     </div>
-  <?php endif; ?>
+  </div>
 
   <div class="wtshare-card">
     <div class="wtshare-field">
@@ -81,12 +88,20 @@ $deat_date_iso = GedcomSnapshot::gedcomDateToIso($fields['DEAT_DATE'] ?? '');
       <input type="text" id="wtshare-deat-plac" name="DEAT_PLAC" value="<?= e($fields['DEAT_PLAC'] ?? '') ?>">
     </div>
     <div class="wtshare-field">
-      <label for="wtshare-photo"><?= I18N::translate('Foto hinzufügen') ?></label>
-      <input type="file" id="wtshare-photo" name="photo" accept="image/*">
-    </div>
-    <div class="wtshare-field">
       <label for="wtshare-note"><?= I18N::translate('Mehr Informationen') ?></label>
       <textarea id="wtshare-note" name="note" rows="4"></textarea>
+    </div>
+  </div>
+
+  <div class="wtshare-card">
+    <p class="wtshare-hint" style="margin: 0 0 12px;"><?= I18N::translate('Optional: Wenn wir wissen, wer geantwortet hat, können wir bei Rückfragen leichter noch einmal nachfragen.') ?></p>
+    <div class="wtshare-field">
+      <label for="wtshare-responder-name"><?= I18N::translate('Dein Name') ?></label>
+      <input type="text" id="wtshare-responder-name" name="responder_name">
+    </div>
+    <div class="wtshare-field">
+      <label for="wtshare-responder-email"><?= I18N::translate('Deine E-Mail-Adresse') ?></label>
+      <input type="text" id="wtshare-responder-email" name="responder_email">
     </div>
   </div>
 
