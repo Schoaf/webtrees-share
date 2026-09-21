@@ -567,7 +567,10 @@ trait RequestPages
             'id'       => (int) $row->id,
             'name'     => $individual instanceof Individual ? strip_tags($individual->fullName()) : ($request_data['name'] ?? $row->xref),
             'applied'  => $row->status === 'applied',
-            'compare'  => $compare,
+            // PHP serializes an empty array as JSON "[]", never "{}", even though this is
+            // conceptually a map - a request with no field changes (only a note, say) would
+            // otherwise hand the app a JSON array where it expects an object.
+            'compare'  => $compare === [] ? (object) [] : $compare,
             'note'     => $response_data['note'] ?? '',
             'photoUrl' => $photo !== '' ? $this->actionUrl('RequestPhoto', $tree->name(), ['id' => $row->id]) : '',
         ]);
