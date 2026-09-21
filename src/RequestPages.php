@@ -484,6 +484,143 @@ trait RequestPages
         $response_data = json_decode($row->response_data ?? '{}', true) ?: [];
         $accept        = $body['accept'] ?? [];
 
+        $this->applyAcceptedResponse($tree, $individual, $response_data, $accept);
+
+        DB::table('webtreesshare_request')
+            ->where('id', '=', $id)
+            ->update(['status' => 'applied', 'applied_at' => date('Y-m-d H:i:s')]);
+
+        // Andreas: after accepting one response, jump straight to the next one waiting for
+        // review instead of showing the just-applied page again - the list is where
+        // "nothing left" naturally shows.
+        $next_id = $this->nextPendingRequestId($tree, (int) Auth::id(), $id);
+        $params  = $next_id !== null ? ['id' => $next_id] : [];
+
+        return redirect($this->actionUrl('RequestReview', $tree->name(), $params));
+    }
+
+    /**
+     * JSON list of the creator's own answered/applied requests, for the app's native "Antworten"
+     * screen - same rows as getRequestReviewAction's id=0 (HTML) branch.
+     */
+    public function getRequestListAction(ServerRequestInterface $request): ResponseInterface
+    {
+        $tree = Validator::attributes($request)->tree();
+
+        $rows = DB::table('webtreesshare_request')
+            ->where('gedcom_id', '=', $tree->id())
+            ->where('creator_user_id', '=', (int) Auth::id())
+            ->whereIn('status', ['answered', 'applied'])
+            ->orderByDesc('responded_at')
+            ->get();
+
+        $names = $this->namesFor($tree, $rows);
+
+        $requests = [];
+
+        foreach ($rows as $row) {
+            $requests[] = [
+                'id'          => (int) $row->id,
+                'xref'        => $row->xref,
+                'name'        => $names[$row->id] ?? $row->xref,
+                'status'      => $row->status,
+                'respondedAt' => $row->responded_at,
+            ];
+        }
+
+        return response(['requests' => $requests]);
+    }
+
+    /**
+     * JSON detail for one request - the app's equivalent of getRequestReviewAction's id!=0
+     * (HTML) branch, same data, same access rules.
+     */
+    public function getRequestDetailAction(ServerRequestInterface $request): ResponseInterface
+    {
+        $tree = Validator::attributes($request)->tree();
+        $id   = Validator::queryParams($request)->integer('id', 0);
+
+        $row = DB::table('webtreesshare_request')->where('id', '=', $id)->first();
+
+        if ($row === null || (int) $row->creator_user_id !== (int) Auth::id() || (int) $row->gedcom_id !== $tree->id()) {
+            return $this->error(404, 'not-found');
+        }
+
+        $individual    = Registry::individualFactory()->make($row->xref, $tree);
+        $request_data  = json_decode($row->request_data, true);
+        $response_data = json_decode($row->response_data ?? '{}', true) ?: [];
+
+        $compare = [];
+
+        foreach (WebtreesShareModule::FIELDS as $key => $definition) {
+            $before = $request_data['fields'][$key] ?? '';
+            $after  = $response_data['fields'][$key] ?? '';
+
+            if ($after !== '' && !$this->fieldsAreEquivalent($definition, $before, $after)) {
+                $compare[$key] = ['before' => $before, 'after' => $after];
+            }
+        }
+
+        $photo = $response_data['photo'] ?? '';
+
+        return response([
+            'id'       => (int) $row->id,
+            'name'     => $individual instanceof Individual ? strip_tags($individual->fullName()) : ($request_data['name'] ?? $row->xref),
+            'applied'  => $row->status === 'applied',
+            'compare'  => $compare,
+            'note'     => $response_data['note'] ?? '',
+            'photoUrl' => $photo !== '' ? $this->actionUrl('RequestPhoto', $tree->name(), ['id' => $row->id]) : '',
+        ]);
+    }
+
+    /**
+     * JSON equivalent of postRequestReviewAction, for the app's native "Antworten" screen -
+     * same access rules and apply logic, returns {ok, nextId} instead of a redirect so the app
+     * can jump straight to the next pending request itself.
+     */
+    public function postRequestApplyAction(ServerRequestInterface $request): ResponseInterface
+    {
+        $tree = Validator::attributes($request)->tree();
+        $body = $this->body($request);
+        $id   = (int) $this->str($body, 'id', '0');
+
+        $row = DB::table('webtreesshare_request')->where('id', '=', $id)->first();
+
+        if ($row === null || (int) $row->creator_user_id !== (int) Auth::id() || (int) $row->gedcom_id !== $tree->id()) {
+            return $this->error(404, 'not-found');
+        }
+
+        $individual = Registry::individualFactory()->make($row->xref, $tree);
+
+        if (!$individual instanceof Individual || !Auth::isEditor($tree) || !$individual->canEdit()) {
+            return $this->error(403, 'not-editable');
+        }
+
+        $response_data = json_decode($row->response_data ?? '{}', true) ?: [];
+        $accept        = is_array($body['accept'] ?? null) ? $body['accept'] : [];
+
+        $this->applyAcceptedResponse($tree, $individual, $response_data, $accept);
+
+        DB::table('webtreesshare_request')
+            ->where('id', '=', $id)
+            ->update(['status' => 'applied', 'applied_at' => date('Y-m-d H:i:s')]);
+
+        return response([
+            'ok'     => true,
+            'nextId' => $this->nextPendingRequestId($tree, (int) Auth::id(), $id),
+        ]);
+    }
+
+    /**
+     * Shared by postRequestReviewAction (HTML) and postRequestApplyAction (JSON) - applies
+     * exactly the fields/note/photo the creator ticked, under their own session, exactly as if
+     * they had received the information by phone and typed it in themselves.
+     *
+     * @param array<string,mixed> $response_data
+     * @param array<string,mixed> $accept
+     */
+    private function applyAcceptedResponse(Tree $tree, Individual $individual, array $response_data, array $accept): void
+    {
         foreach (WebtreesShareModule::FIELDS as $key => $definition) {
             $value = $response_data['fields'][$key] ?? '';
 
@@ -503,12 +640,22 @@ trait RequestPages
         if ($photo !== '' && !empty($accept['photo'])) {
             $this->applyPendingPhoto($tree, $individual, $photo);
         }
+    }
 
-        DB::table('webtreesshare_request')
-            ->where('id', '=', $id)
-            ->update(['status' => 'applied', 'applied_at' => date('Y-m-d H:i:s')]);
+    /**
+     * The next request still waiting for review, oldest first - same order as the list.
+     */
+    private function nextPendingRequestId(Tree $tree, int $creator_id, int $exclude_id): int|null
+    {
+        $row = DB::table('webtreesshare_request')
+            ->where('gedcom_id', '=', $tree->id())
+            ->where('creator_user_id', '=', $creator_id)
+            ->where('status', '=', 'answered')
+            ->where('id', '!=', $exclude_id)
+            ->orderBy('responded_at')
+            ->first();
 
-        return redirect($this->actionUrl('RequestReview', $tree->name(), ['id' => $id]));
+        return $row === null ? null : (int) $row->id;
     }
 
     /**
