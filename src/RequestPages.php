@@ -7,7 +7,7 @@ namespace WebtreesShare;
 use Fisharebest\Webtrees\Auth;
 use Fisharebest\Webtrees\Contracts\UserInterface;
 use Fisharebest\Webtrees\DB;
-use Fisharebest\Webtrees\Enums\Restriction;
+use Fisharebest\Webtrees\Elements\RestrictionNotice;
 use Fisharebest\Webtrees\Fact;
 use Fisharebest\Webtrees\GuestUser;
 use Fisharebest\Webtrees\I18N;
@@ -41,6 +41,7 @@ use function pathinfo;
 use function redirect;
 use function response;
 use function sha1;
+use function str_ends_with;
 use function strip_tags;
 use function strtotime;
 use function time;
@@ -762,7 +763,7 @@ trait RequestPages
         }
 
         $fact   = $individual->facts(['RESN'])->first();
-        $locked = $fact instanceof Fact && Restriction::fromString($fact->value())->isLocked();
+        $locked = $fact instanceof Fact && str_ends_with($fact->value(), RestrictionNotice::VALUE_LOCKED);
 
         return Auth::isEditor($tree, $user) && !$locked;
     }
