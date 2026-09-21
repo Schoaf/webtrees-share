@@ -14,6 +14,7 @@ use Fisharebest\Webtrees\I18N;
  * @var bool   $applied
  * @var string $action
  * @var string $photo_url
+ * @var string $delete_action
  */
 
 $field_labels = [
@@ -81,6 +82,11 @@ $field_labels = [
     font-weight: 500;
     cursor: pointer;
   }
+  .wtshare-delete-form button[type="submit"] {
+    background: transparent;
+    color: #B3261E;
+    border: 1px solid #E7E0EC;
+  }
 </style>
 
 <div class="wtshare-review">
@@ -89,6 +95,18 @@ $field_labels = [
   <?php if ($responder !== '') : ?>
     <p style="color: #79747E;"><?= I18N::translate('Von: %s', e($responder)) ?></p>
   <?php endif; ?>
+
+  <form
+    method="post"
+    action="<?= e($delete_action) ?>"
+    class="wtshare-delete-form"
+    style="margin-bottom: 16px;"
+    onsubmit="return confirm('<?= e(I18N::translate('Diese Anfrage wirklich verwerfen?')) ?>');"
+  >
+    <?= csrf_field() ?>
+    <input type="hidden" name="id" value="<?= e((string) $row->id) ?>">
+    <button type="submit"><?= I18N::translate('Anfrage verwerfen') ?></button>
+  </form>
 
   <?php if ($applied) : ?>
     <p class="alert alert-success"><?= I18N::translate('Diese Antwort wurde bereits übernommen.') ?></p>

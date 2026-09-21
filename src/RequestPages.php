@@ -372,12 +372,13 @@ trait RequestPages
             }
 
             return $this->viewResponse($this->name() . '::request-review-list', [
-                'title'      => I18N::translate('Anfragen'),
-                'tree'       => $tree,
-                'rows'       => $rows,
-                'names'      => $this->namesFor($tree, $rows),
-                'urls'       => $urls,
-                'responders' => $responders,
+                'title'         => I18N::translate('Anfragen'),
+                'tree'          => $tree,
+                'rows'          => $rows,
+                'names'         => $this->namesFor($tree, $rows),
+                'urls'          => $urls,
+                'responders'    => $responders,
+                'delete_action' => $this->actionUrl('RequestDelete', $tree->name()),
             ]);
         }
 
@@ -418,16 +419,17 @@ trait RequestPages
         $photo = $response_data['photo'] ?? '';
 
         return $this->viewResponse($this->name() . '::request-review', [
-            'title'     => I18N::translate('Antwort prüfen'),
-            'tree'      => $tree,
-            'row'       => $row,
-            'name'      => $individual instanceof Individual ? strip_tags($individual->fullName()) : ($request_data['name'] ?? $row->xref),
-            'responder' => $this->responderLabel($response_data),
-            'compare'   => $compare,
-            'note'      => $response_data['note'] ?? '',
-            'applied'   => $row->status === 'applied',
-            'action'    => $this->actionUrl('RequestReview', $tree->name()),
-            'photo_url' => $photo !== '' ? $this->actionUrl('RequestPhoto', $tree->name(), ['id' => $row->id]) : '',
+            'title'         => I18N::translate('Antwort prüfen'),
+            'tree'          => $tree,
+            'row'           => $row,
+            'name'          => $individual instanceof Individual ? strip_tags($individual->fullName()) : ($request_data['name'] ?? $row->xref),
+            'responder'     => $this->responderLabel($response_data),
+            'compare'       => $compare,
+            'note'          => $response_data['note'] ?? '',
+            'applied'       => $row->status === 'applied',
+            'action'        => $this->actionUrl('RequestReview', $tree->name()),
+            'photo_url'     => $photo !== '' ? $this->actionUrl('RequestPhoto', $tree->name(), ['id' => $row->id]) : '',
+            'delete_action' => $this->actionUrl('RequestDelete', $tree->name()),
         ]);
     }
 
@@ -715,6 +717,48 @@ trait RequestPages
     public function getRequestNotificationsAction(ServerRequestInterface $request): ResponseInterface
     {
         return response(['unread' => $this->unreadCount((int) Auth::id())]);
+    }
+
+    /**
+     * Discards a request entirely - the row, and any photo files it's holding (the existing-photo
+     * snapshot, and a guest's uploaded photo if it was never accepted). Only the creator whose id
+     * is actually stored on the row may do this - same ownership check as every other
+     * creator-only action here, never anyone else's session and never the guest's.
+     *
+     * One action for both surfaces: the web form posts here and follows the redirect; the app
+     * calls the same endpoint and only checks the status code, exactly like WebtreesClient.login()
+     * already does with webtrees' own login redirect - no separate JSON action needed for
+     * something with no real response body to speak of.
+     */
+    public function postRequestDeleteAction(ServerRequestInterface $request): ResponseInterface
+    {
+        $tree = Validator::attributes($request)->tree();
+        $body = $this->body($request);
+        $id   = (int) $this->str($body, 'id', '0');
+
+        $row = DB::table('webtreesshare_request')->where('id', '=', $id)->first();
+
+        if ($row === null || (int) $row->creator_user_id !== (int) Auth::id() || (int) $row->gedcom_id !== $tree->id()) {
+            return $this->error(404, 'not-found');
+        }
+
+        $request_data  = json_decode($row->request_data, true) ?: [];
+        $response_data = json_decode($row->response_data ?? '{}', true) ?: [];
+
+        $existing_photo = (string) ($request_data['photo'] ?? '');
+        $pending_photo  = (string) ($response_data['photo'] ?? '');
+
+        if ($existing_photo !== '' && $this->existingPhotoFilesystem()->fileExists($existing_photo)) {
+            $this->existingPhotoFilesystem()->delete($existing_photo);
+        }
+
+        if ($pending_photo !== '' && $this->pendingPhotoFilesystem()->fileExists($pending_photo)) {
+            $this->pendingPhotoFilesystem()->delete($pending_photo);
+        }
+
+        DB::table('webtreesshare_request')->where('id', '=', $id)->delete();
+
+        return redirect($this->actionUrl('RequestReview', $tree->name()));
     }
 
     // -----------------------------------------------------------------------------------
