@@ -9,6 +9,7 @@ use Fisharebest\Webtrees\Contracts\UserInterface;
 use Fisharebest\Webtrees\DB;
 use Fisharebest\Webtrees\Elements\RestrictionNotice;
 use Fisharebest\Webtrees\Fact;
+use Fisharebest\Webtrees\FlashMessages;
 use Fisharebest\Webtrees\GuestUser;
 use Fisharebest\Webtrees\I18N;
 use Fisharebest\Webtrees\Individual;
@@ -759,6 +760,10 @@ trait RequestPages
         }
 
         DB::table('webtreesshare_request')->where('id', '=', $id)->delete();
+
+        // Otherwise landing back on the list looks exactly like nothing happened - this is the
+        // only feedback a plain redirect gives that the delete actually went through.
+        FlashMessages::addMessage(I18N::translate('Die Anfrage wurde verworfen.'), 'success');
 
         return redirect($this->actionUrl('RequestReview', $tree->name()));
     }
