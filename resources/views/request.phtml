@@ -42,15 +42,38 @@ $deat_date_iso = GedcomSnapshot::gedcomDateToIso($fields['DEAT_DATE'] ?? '');
 
   <div class="wtshare-card" style="text-align: center;">
     <div class="wtshare-photo-wrap">
-      <?php if ($photo_url !== '') : ?>
-        <img class="wtshare-photo" src="<?= e($photo_url) ?>" alt="">
-      <?php else : ?>
-        <div class="wtshare-photo wtshare-photo-placeholder"></div>
-      <?php endif; ?>
+      <img
+        id="wtshare-photo-preview"
+        class="wtshare-photo"
+        src="<?= e($photo_url) ?>"
+        alt=""
+        style="<?= $photo_url === '' ? 'display:none' : '' ?>"
+      >
+      <div
+        id="wtshare-photo-placeholder"
+        class="wtshare-photo wtshare-photo-placeholder"
+        style="<?= $photo_url !== '' ? 'display:none' : '' ?>"
+      ></div>
       <label for="wtshare-photo" class="wtshare-photo-upload" title="<?= e(I18N::translate('Foto hinzufügen')) ?>">+</label>
       <input type="file" id="wtshare-photo" name="photo" accept="image/*" class="wtshare-photo-input">
     </div>
   </div>
+  <script>
+    // Selecting a file (incl. taking a photo on mobile) doesn't reload the page, so without
+    // this the guest sees no feedback at all that anything was chosen - looked like the upload
+    // silently did nothing, even though the file was actually attached correctly.
+    document.getElementById('wtshare-photo').addEventListener('change', function (event) {
+      var file = event.target.files && event.target.files[0];
+      if (!file) {
+        return;
+      }
+      var preview = document.getElementById('wtshare-photo-preview');
+      var placeholder = document.getElementById('wtshare-photo-placeholder');
+      preview.src = URL.createObjectURL(file);
+      preview.style.display = 'block';
+      placeholder.style.display = 'none';
+    });
+  </script>
 
   <div class="wtshare-card">
     <div class="wtshare-field">
