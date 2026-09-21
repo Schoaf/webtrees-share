@@ -28,14 +28,54 @@ $field_labels = [
 ?>
 
 <style>
-  .wtshare-review { max-width: 720px; margin: 0 auto; }
-  .wtshare-compare-row { border: 1px solid #ddd; border-radius: .5rem; padding: 1rem; margin-bottom: 1rem; }
-  .wtshare-compare-row .values { display: flex; gap: 1rem; flex-wrap: wrap; margin: .5rem 0; }
-  .wtshare-compare-row .values > div { flex: 1 1 240px; }
-  .wtshare-compare-row .values .before { color: #888; }
-  .wtshare-compare-row .values .after { font-weight: bold; }
+  .wtshare-review, .wtshare-review * { box-sizing: border-box; }
+  .wtshare-review {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 4px;
+    font-family: 'Roboto', system-ui, sans-serif;
+  }
+  .wtshare-compare-row {
+    border: 1px solid #E7E0EC;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+    background: #FFFFFF;
+    width: 100%;
+  }
+  .wtshare-compare-row label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+  }
+  .wtshare-compare-row .values {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin: 10px 0 0;
+  }
+  .wtshare-compare-row .values > div {
+    flex: 1 1 160px;
+    min-width: 0;
+    overflow-wrap: break-word;
+  }
+  .wtshare-compare-row .values .before { color: #79747E; font-size: 14px; }
+  .wtshare-compare-row .values .after { font-weight: 600; font-size: 15px; }
+  .wtshare-compare-row img { max-width: 100%; height: auto; }
+  .wtshare-review button[type="submit"] {
+    width: 100%;
+    padding: 14px;
+    border-radius: 999px;
+    border: none;
+    background: #2F6FB0;
+    color: #FFFFFF;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+  }
   @media (max-width: 480px) {
-    .wtshare-compare-row .values { flex-direction: column; }
+    .wtshare-compare-row .values { flex-direction: column; gap: 4px; }
   }
 </style>
 
@@ -55,7 +95,7 @@ $field_labels = [
       <?php foreach ($compare as $key => $value) : ?>
         <div class="wtshare-compare-row">
           <label>
-            <input type="checkbox" name="accept[<?= e($key) ?>]" value="1" checked>
+            <input type="checkbox" name="accept[<?= e($key) ?>]" value="1">
             <strong><?= e($field_labels[$key] ?? $key) ?></strong>
           </label>
           <div class="values">
@@ -72,7 +112,7 @@ $field_labels = [
       <?php if ($note !== '') : ?>
         <div class="wtshare-compare-row">
           <label>
-            <input type="checkbox" name="accept[note]" value="1" checked>
+            <input type="checkbox" name="accept[note]" value="1">
             <strong><?= I18N::translate('Als Notiz übernehmen') ?></strong>
           </label>
           <div class="values">
@@ -84,7 +124,7 @@ $field_labels = [
       <?php if ($photo_url !== '') : ?>
         <div class="wtshare-compare-row">
           <label>
-            <input type="checkbox" name="accept[photo]" value="1" checked>
+            <input type="checkbox" name="accept[photo]" value="1">
             <strong><?= I18N::translate('Foto übernehmen') ?></strong>
           </label>
           <div class="values">
@@ -93,7 +133,7 @@ $field_labels = [
         </div>
       <?php endif; ?>
 
-      <p><button type="submit" class="btn btn-primary"><?= I18N::translate('Speichern') ?></button></p>
+      <p><button type="submit"><?= I18N::translate('Ausgewähltes übernehmen') ?></button></p>
     </form>
   <?php endif; ?>
 </div>

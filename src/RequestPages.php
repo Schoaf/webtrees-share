@@ -378,7 +378,7 @@ trait RequestPages
             $before = $request_data['fields'][$key] ?? '';
             $after  = $response_data['fields'][$key] ?? '';
 
-            if ($after !== '' && $after !== $before) {
+            if ($after !== '' && !$this->fieldsAreEquivalent($definition, $before, $after)) {
                 $compare[$key] = ['before' => $before, 'after' => $after];
             }
         }
@@ -592,6 +592,30 @@ trait RequestPages
     private function requestUrl(Tree $tree, string $token): string
     {
         return $this->actionUrl('Request', $tree->name(), ['token' => $token]);
+    }
+
+    /**
+     * Whether a field's "before" and "after" values represent the same thing, for deciding what
+     * the review page even needs to show - a plain string compare isn't enough for a DATE
+     * sub-line: isoDateToGedcom() never zero-pads the day ("5 JAN 1983"), so a guest who left a
+     * date picker showing an unchanged "05 JAN 1983" round-trips to a technically-different
+     * string despite not having changed anything. Only DATE fields need this; every other kind
+     * already compares correctly as plain strings.
+     */
+    private function fieldsAreEquivalent(array $definition, string $before, string $after): bool
+    {
+        if ($before === $after) {
+            return true;
+        }
+
+        if (($definition['part'] ?? null) !== 'DATE') {
+            return false;
+        }
+
+        $before_iso = GedcomSnapshot::gedcomDateToIso($before);
+        $after_iso  = GedcomSnapshot::gedcomDateToIso($after);
+
+        return $before_iso !== '' && $before_iso === $after_iso;
     }
 
     /**
