@@ -334,18 +334,21 @@ trait RequestPages
                 ->orderByDesc('responded_at')
                 ->get();
 
-            $urls = [];
+            $urls      = [];
+            $responders = [];
 
             foreach ($rows as $row) {
-                $urls[$row->id] = $this->actionUrl('RequestReview', $tree->name(), ['id' => $row->id]);
+                $urls[$row->id]       = $this->actionUrl('RequestReview', $tree->name(), ['id' => $row->id]);
+                $responders[$row->id] = $this->responderLabel(json_decode($row->response_data ?? '{}', true) ?: []);
             }
 
             return $this->viewResponse($this->name() . '::request-review-list', [
-                'title' => I18N::translate('Anfragen'),
-                'tree'  => $tree,
-                'rows'  => $rows,
-                'names' => $this->namesFor($tree, $rows),
-                'urls'  => $urls,
+                'title'      => I18N::translate('Anfragen'),
+                'tree'       => $tree,
+                'rows'       => $rows,
+                'names'      => $this->namesFor($tree, $rows),
+                'urls'       => $urls,
+                'responders' => $responders,
             ]);
         }
 
@@ -390,6 +393,7 @@ trait RequestPages
             'tree'      => $tree,
             'row'       => $row,
             'name'      => $individual instanceof Individual ? strip_tags($individual->fullName()) : ($request_data['name'] ?? $row->xref),
+            'responder' => $this->responderLabel($response_data),
             'compare'   => $compare,
             'note'      => $response_data['note'] ?? '',
             'applied'   => $row->status === 'applied',
@@ -525,6 +529,7 @@ trait RequestPages
                 'name'        => $names[$row->id] ?? $row->xref,
                 'status'      => $row->status,
                 'respondedAt' => $row->responded_at,
+                'responder'   => $this->responderLabel(json_decode($row->response_data ?? '{}', true) ?: []),
             ];
         }
 
@@ -564,15 +569,16 @@ trait RequestPages
         $photo = $response_data['photo'] ?? '';
 
         return response([
-            'id'       => (int) $row->id,
-            'name'     => $individual instanceof Individual ? strip_tags($individual->fullName()) : ($request_data['name'] ?? $row->xref),
-            'applied'  => $row->status === 'applied',
+            'id'        => (int) $row->id,
+            'name'      => $individual instanceof Individual ? strip_tags($individual->fullName()) : ($request_data['name'] ?? $row->xref),
+            'responder' => $this->responderLabel($response_data),
+            'applied'   => $row->status === 'applied',
             // PHP serializes an empty array as JSON "[]", never "{}", even though this is
             // conceptually a map - a request with no field changes (only a note, say) would
             // otherwise hand the app a JSON array where it expects an object.
-            'compare'  => $compare === [] ? (object) [] : $compare,
-            'note'     => $response_data['note'] ?? '',
-            'photoUrl' => $photo !== '' ? $this->actionUrl('RequestPhoto', $tree->name(), ['id' => $row->id]) : '',
+            'compare'   => $compare === [] ? (object) [] : $compare,
+            'note'      => $response_data['note'] ?? '',
+            'photoUrl'  => $photo !== '' ? $this->actionUrl('RequestPhoto', $tree->name(), ['id' => $row->id]) : '',
         ]);
     }
 
@@ -612,6 +618,19 @@ trait RequestPages
             'ok'     => true,
             'nextId' => $this->nextPendingRequestId($tree, (int) Auth::id(), $id),
         ]);
+    }
+
+    /**
+     * Who answered, if they said so - a guest is never required to give their name/email, so
+     * this is frequently blank. Same fallback notifyCreatorOfResponse() already uses.
+     *
+     * @param array<string,mixed> $response_data
+     */
+    private function responderLabel(array $response_data): string
+    {
+        $name = (string) ($response_data['responder_name'] ?? '');
+
+        return $name !== '' ? $name : (string) ($response_data['responder_email'] ?? '');
     }
 
     /**
@@ -884,10 +903,7 @@ trait RequestPages
         $name       = $data['name'] ?? $row->xref;
         $review_url = $this->actionUrl('RequestReview', $tree->name(), ['id' => $row->id]);
 
-        // Who answered, if they said - a guest is never required to give their name/email, so
-        // this is frequently blank.
-        $responder = $response_data['responder_name'] ?? '';
-        $responder = $responder !== '' ? $responder : ($response_data['responder_email'] ?? '');
+        $responder = $this->responderLabel($response_data);
 
         $text = $responder !== ''
             ? I18N::translate('Du hast eine Antwort von %1$s auf Deine Anfrage zu %2$s bekommen.', $responder, $name)

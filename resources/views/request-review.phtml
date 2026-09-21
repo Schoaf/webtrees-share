@@ -8,6 +8,7 @@ use Fisharebest\Webtrees\I18N;
  * @var string $title
  * @var object $row
  * @var string $name
+ * @var string $responder
  * @var array<string,array{before: string, after: string}> $compare
  * @var string $note
  * @var bool   $applied
@@ -85,6 +86,9 @@ $field_labels = [
 <div class="wtshare-review">
   <h2 class="wt-page-title"><?= e($title) ?></h2>
   <p><?= I18N::translate('Für: %s', '<strong>' . e($name) . '</strong>') ?></p>
+  <?php if ($responder !== '') : ?>
+    <p style="color: #79747E;"><?= I18N::translate('Von: %s', e($responder)) ?></p>
+  <?php endif; ?>
 
   <?php if ($applied) : ?>
     <p class="alert alert-success"><?= I18N::translate('Diese Antwort wurde bereits übernommen.') ?></p>

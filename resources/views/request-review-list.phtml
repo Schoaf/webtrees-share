@@ -11,6 +11,7 @@ use Fisharebest\Webtrees\Tree;
  * @var iterable<object>  $rows
  * @var array<int,string> $names
  * @var array<int,string> $urls
+ * @var array<int,string> $responders
  */
 
 ?>
@@ -22,6 +23,7 @@ use Fisharebest\Webtrees\Tree;
     <thead>
       <tr>
         <th><?= I18N::translate('Person') ?></th>
+        <th><?= I18N::translate('Von') ?></th>
         <th><?= I18N::translate('Status') ?></th>
         <th></th>
       </tr>
@@ -30,6 +32,7 @@ use Fisharebest\Webtrees\Tree;
       <?php foreach ($rows as $row) : ?>
         <tr>
           <td><?= e($names[$row->id] ?? $row->xref) ?></td>
+          <td><?= ($responders[$row->id] ?? '') !== '' ? e($responders[$row->id]) : '—' ?></td>
           <td>
             <?= $row->status === 'applied' ? I18N::translate('Übernommen') : I18N::translate('Neue Antwort') ?>
           </td>
