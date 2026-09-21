@@ -14,6 +14,7 @@ use Fisharebest\Webtrees\Services\EmailService;
 use Fisharebest\Webtrees\Services\MediaFileService;
 use Fisharebest\Webtrees\Services\PendingChangesService;
 use Fisharebest\Webtrees\Services\UserService;
+use Fisharebest\Webtrees\Site;
 use Fisharebest\Webtrees\SiteUser;
 use Fisharebest\Webtrees\Tree;
 use Fisharebest\Webtrees\TreeUser;
@@ -192,6 +193,16 @@ trait RequestPages
             ]);
         }
 
+        if ($row->status !== 'pending') {
+            return $this->viewResponse($this->name() . '::request-answered', [
+                'title'        => I18N::translate('Bereits beantwortet'),
+                'tree'         => $tree,
+                'register_url' => Site::getPreference('USE_REGISTRATION_MODULE') === '1'
+                    ? $this->coreUrl($request, '/register/' . $tree->name())
+                    : '',
+            ]);
+        }
+
         $data       = json_decode($row->request_data, true);
         $photo      = $data['photo'] ?? '';
 
@@ -349,7 +360,9 @@ trait RequestPages
             // browser/device with no active webtrees session - send them to log in and straight
             // back here, rather than a bare 404 for what's actually just "please sign in".
             if (Auth::id() === null) {
-                return redirect($this->loginUrl($request, $tree));
+                $return_url = $this->actionUrl('RequestReview', $tree->name(), ['id' => $id]);
+
+                return redirect($this->loginUrl($request, $tree, $return_url));
             }
 
             return $this->error(404, 'not-found');
@@ -598,10 +611,16 @@ trait RequestPages
      * confirmed by inspecting a real webtrees-generated login link on a live page:
      * "/login/<tree>?url=<return-url>".
      */
-    private function loginUrl(ServerRequestInterface $request, Tree $tree): string
+    /**
+     * $return_url must be a URL this module itself built (e.g. via actionUrl()), never
+     * $request->getUri() - webtrees' own BaseUrl middleware rewrites the request's URI path to
+     * strip "index.php" off it whenever base_url isn't set in config.ini.php (true on this
+     * install), so a round-tripped $request->getUri() silently loses the front-controller
+     * filename and no longer resolves to anything. Confirmed by reading BaseUrl::process() and by
+     * reproducing the exact "too many redirects" this caused live on production before the fix.
+     */
+    private function loginUrl(ServerRequestInterface $request, Tree $tree, string $return_url): string
     {
-        $return_url = (string) $request->getUri();
-
         return $this->coreUrl($request, '/login/' . $tree->name()) . '&url=' . urlencode($return_url);
     }
 

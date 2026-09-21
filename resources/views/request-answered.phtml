@@ -1,0 +1,33 @@
+<?php
+
+declare(strict_types=1);
+
+use Fisharebest\Webtrees\I18N;
+
+/**
+ * @var string $title
+ * @var string $register_url
+ */
+
+?>
+
+<h1 class="wtshare-title"><?= e($title) ?></h1>
+
+<div class="wtshare-card">
+  <p style="margin: 0; color: var(--text-secondary);">
+    <?= I18N::translate('Diese Anfrage wurde bereits beantwortet. Danke für Deine Hilfe!') ?>
+  </p>
+</div>
+
+<div class="wtshare-card">
+  <p style="margin: 0<?= $register_url !== '' ? ' 0 12px' : '' ?>; color: var(--text-secondary);">
+    <?= I18N::translate('Möchtest Du noch etwas ergänzen? Bitte die Person, die Dir den Link geschickt hat, um einen neuen Link.') ?>
+  </p>
+  <?php if ($register_url !== '') : ?>
+    <p style="margin: 0; color: var(--text-secondary);">
+      <?= I18N::translate('Oder Du registrierst Dich für ein eigenes Konto, um selbst direkt Änderungen am Stammbaum vorzuschlagen.') ?>
+      <br>
+      <a href="<?= e($register_url) ?>"><?= I18N::translate('Konto anfragen') ?></a>
+    </p>
+  <?php endif; ?>
+</div>
