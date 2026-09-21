@@ -7,8 +7,6 @@ namespace WebtreesShare;
 use Fisharebest\Webtrees\Auth;
 use Fisharebest\Webtrees\DB;
 use Fisharebest\Webtrees\GuestUser;
-use Fisharebest\Webtrees\Http\Controllers\Login;
-use Fisharebest\Webtrees\Http\Controllers\TreePage;
 use Fisharebest\Webtrees\I18N;
 use Fisharebest\Webtrees\Individual;
 use Fisharebest\Webtrees\Registry;
@@ -38,7 +36,6 @@ use function nl2br;
 use function pathinfo;
 use function redirect;
 use function response;
-use function route;
 use function sha1;
 use function strip_tags;
 use function strtotime;
@@ -202,7 +199,7 @@ trait RequestPages
             'title'           => I18N::translate('Angaben ergänzen'),
             'tree'            => $tree,
             'tree_title'      => $tree->title(),
-            'tree_url'        => $this->treeUrl($tree),
+            'tree_url'        => $this->treeUrl($request, $tree),
             'requester_name'  => $data['requester_name'] ?? '',
             'token'           => $token,
             'name'            => $data['name'] ?? '',
@@ -274,7 +271,7 @@ trait RequestPages
         return $this->viewResponse($this->name() . '::request-thanks', [
             'title'           => I18N::translate('Danke!'),
             'tree'            => $tree,
-            'tree_url'        => $this->treeUrl($tree),
+            'tree_url'        => $this->treeUrl($request, $tree),
             'requester_name'  => $request_data['requester_name'] ?? '',
             'suggestions'     => $suggestions,
             'token'           => $token,
@@ -352,7 +349,7 @@ trait RequestPages
             // browser/device with no active webtrees session - send them to log in and straight
             // back here, rather than a bare 404 for what's actually just "please sign in".
             if (Auth::id() === null) {
-                return redirect(route(Login::class, ['url' => (string) $request->getUri()]));
+                return redirect($this->loginUrl($request, $tree));
             }
 
             return $this->error(404, 'not-found');
@@ -584,9 +581,35 @@ trait RequestPages
         return $this->actionUrl('Request', $tree->name(), ['token' => $token]);
     }
 
-    private function treeUrl(Tree $tree): string
+    /**
+     * Built by hand rather than via route(TreePage::class, ...) - see loginUrl()'s docblock,
+     * same reasoning: route(<FQCN>, ...) proved unreliable on production (2.2.6), so every
+     * core-page URL this module builds is a plain, verified-working "/tree/<name>" path instead.
+     */
+    private function treeUrl(ServerRequestInterface $request, Tree $tree): string
     {
-        return route(TreePage::class, ['tree' => $tree->name()]);
+        return $this->coreUrl($request, '/tree/' . $tree->name());
+    }
+
+    /**
+     * Built by hand rather than via route(Login::class, ...) - that threw "route not found" on
+     * production (2.2.6): Aura's route map apparently doesn't have Login registered under its
+     * FQCN there, only under some other name webtrees' own core templates use internally. Format
+     * confirmed by inspecting a real webtrees-generated login link on a live page:
+     * "/login/<tree>?url=<return-url>".
+     */
+    private function loginUrl(ServerRequestInterface $request, Tree $tree): string
+    {
+        $return_url = (string) $request->getUri();
+
+        return $this->coreUrl($request, '/login/' . $tree->name()) . '&url=' . urlencode($return_url);
+    }
+
+    private function coreUrl(ServerRequestInterface $request, string $path): string
+    {
+        $base_url = rtrim(Validator::attributes($request)->string('base_url'), '/');
+
+        return $base_url . '/index.php?route=' . urlencode($path);
     }
 
     /**
