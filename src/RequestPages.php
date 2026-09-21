@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace WebtreesShare;
 
 use Fisharebest\Webtrees\Auth;
+use Fisharebest\Webtrees\Contracts\UserInterface;
 use Fisharebest\Webtrees\DB;
+use Fisharebest\Webtrees\Enums\Restriction;
+use Fisharebest\Webtrees\Fact;
 use Fisharebest\Webtrees\GuestUser;
 use Fisharebest\Webtrees\I18N;
 use Fisharebest\Webtrees\Individual;
@@ -82,7 +85,7 @@ trait RequestPages
             return $denied;
         }
 
-        $row = $this->createRequestRow($tree, $individual, (int) Auth::id());
+        $row = $this->createRequestRow($tree, $individual, Auth::user());
 
         return response([
             'ok'      => true,
@@ -295,6 +298,16 @@ trait RequestPages
      * A guest picks a suggested relative from the thank-you page: create a fresh request for
      * them under the same creator, and send the guest straight into a new getRequestAction -
      * no extra app-side step needed to keep going.
+     *
+     * This whole action runs with no session at all (the guest is anonymous), but the new
+     * request gets attributed to the *original* creator - so every permission check here has to
+     * be evaluated for that creator specifically, never for "whoever is currently logged in"
+     * (nobody is). Two layers, deliberately redundant:
+     *   1. $xref must be one the creator's own session already vetted as a suggestion when the
+     *      *original* request was created (relativeSuggestions(), run under their session at the
+     *      time) - a guest can't submit an arbitrary xref they typed into the request body.
+     *   2. Even so, re-check canShow()/canEdit() for the creator now, in case tree permissions
+     *      or the record itself changed since that snapshot was taken.
      */
     public function postRequestContinueAction(ServerRequestInterface $request): ResponseInterface
     {
@@ -306,14 +319,28 @@ trait RequestPages
             return $this->error(404, 'not-found');
         }
 
-        $xref       = $this->str($body, 'xref');
-        $individual = $xref === '' ? null : Registry::individualFactory()->make($xref, $tree);
+        $creator = Registry::container()->get(UserService::class)->find((int) $row->creator_user_id);
 
-        if (!$individual instanceof Individual || !$individual->canShow()) {
+        if ($creator === null) {
             return $this->error(404, 'not-found');
         }
 
-        $new_row = $this->createRequestRow($tree, $individual, (int) $row->creator_user_id);
+        $xref = $this->str($body, 'xref');
+
+        $request_data  = json_decode($row->request_data, true);
+        $allowed_xrefs = array_column($request_data['suggestions'] ?? [], 'xref');
+
+        if ($xref === '' || !in_array($xref, $allowed_xrefs, true)) {
+            return $this->error(404, 'not-found');
+        }
+
+        $individual = Registry::individualFactory()->make($xref, $tree);
+
+        if (!$individual instanceof Individual || !$this->creatorCanRequestFor($individual, $creator)) {
+            return $this->error(404, 'not-found');
+        }
+
+        $new_row = $this->createRequestRow($tree, $individual, $creator);
 
         return redirect($this->requestUrl($tree, $new_row['token']));
     }
@@ -703,7 +730,7 @@ trait RequestPages
             return $this->error(403, 'private');
         }
 
-        if (!Auth::isEditor($individual->tree()) || !$individual->canEdit()) {
+        if (!$this->creatorCanRequestFor($individual, Auth::user())) {
             return $this->error(403, 'not-editable');
         }
 
@@ -711,24 +738,54 @@ trait RequestPages
     }
 
     /**
+     * Whether $user could legitimately start (or continue) a share request for $individual -
+     * canShow() at their own access level, plus the same editor/lock bar Individual::canEdit()
+     * enforces. Individual::canEdit() itself always checks the *current session* with no way to
+     * name a different user, which is exactly wrong for postRequestContinueAction: that action
+     * runs as the anonymous guest, but the request it creates is attributed to (and must respect
+     * the rights of) the *original* creator, never the guest's own session.
+     */
+    private function creatorCanRequestFor(Individual $individual, UserInterface $user): bool
+    {
+        $tree = $individual->tree();
+
+        if (!$individual->canShow(Auth::accessLevel($tree, $user))) {
+            return false;
+        }
+
+        if ($individual->isPendingDeletion()) {
+            return false;
+        }
+
+        if (Auth::isManager($tree, $user)) {
+            return true;
+        }
+
+        $fact   = $individual->facts(['RESN'])->first();
+        $locked = $fact instanceof Fact && Restriction::fromString($fact->value())->isLocked();
+
+        return Auth::isEditor($tree, $user) && !$locked;
+    }
+
+    /**
      * @return array{token: string, expires_at: string}
      */
-    private function createRequestRow(Tree $tree, Individual $individual, int $creator_id): array
+    private function createRequestRow(Tree $tree, Individual $individual, UserInterface $creator): array
     {
-        $creator = Registry::container()->get(UserService::class)->find($creator_id);
-
         $data = [
             // Plain text: this feeds both HTML views (which then e() it) and plain-text emails
             // (requestEmailBody()) - fullName() itself returns pre-formatted HTML (<span class="NAME">...).
             'name'            => strip_tags($individual->fullName()),
-            'requester_name'  => $creator?->realName() ?? '',
+            'requester_name'  => $creator->realName(),
             'fields'          => GedcomSnapshot::fields($individual),
             'context'         => GedcomSnapshot::context($individual),
             'photo'           => $this->snapshotExistingPhoto($tree, $individual),
-            // Computed here, under the creator's own session, for the same reason every other
-            // field above is a frozen snapshot: the guest's own (unauthenticated) submission
-            // should never need to walk live family-tree relationships itself.
-            'suggestions'     => $this->relativeSuggestions($individual),
+            // Computed here, under the creator's own rights (explicitly, not via the current
+            // session - see creatorCanRequestFor()), for the same reason every other field above
+            // is a frozen snapshot: neither the guest's initial view nor their eventual
+            // "continue with a relative" pick should ever need to walk live family-tree
+            // relationships, or trust an xref the guest could have tampered with, themselves.
+            'suggestions'     => $this->relativeSuggestions($individual, $creator),
         ];
 
         $token      = Str::random(32);
@@ -738,7 +795,7 @@ trait RequestPages
         DB::table('webtreesshare_request')->insert([
             'gedcom_id'       => $tree->id(),
             'xref'            => $individual->xref(),
-            'creator_user_id' => $creator_id,
+            'creator_user_id' => $creator->id(),
             'token'           => $token,
             'request_data'    => json_encode($data, JSON_THROW_ON_ERROR),
             'status'          => 'pending',
@@ -927,11 +984,15 @@ trait RequestPages
 
     /**
      * Parents and children of $individual who are missing at least one of the fixed fields,
-     * most-missing first - offered as "help with them too?" on the thank-you page.
+     * most-missing first - offered as "help with them too?" on the thank-you page. Filtered to
+     * $creator's own rights (creatorCanRequestFor(), same bar postCreateRequestAction enforces),
+     * not the current session's - this list becomes the *only* xrefs postRequestContinueAction
+     * will ever act on later, entirely from the anonymous guest's own request, so it has to be
+     * exactly as restrictive as if the creator had started each of those requests themselves.
      *
      * @return list<array{xref: string, name: string, missing: int}>
      */
-    private function relativeSuggestions(Individual $individual): array
+    private function relativeSuggestions(Individual $individual, UserInterface $creator): array
     {
         $relatives = [];
 
@@ -954,7 +1015,7 @@ trait RequestPages
         $suggestions = [];
 
         foreach ($relatives as $relative) {
-            if (!$relative->canShow()) {
+            if (!$this->creatorCanRequestFor($relative, $creator)) {
                 continue;
             }
 
