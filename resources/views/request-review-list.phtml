@@ -12,7 +12,6 @@ use Fisharebest\Webtrees\Tree;
  * @var array<int,string> $names
  * @var array<int,string> $urls
  * @var array<int,string> $responders
- * @var string            $delete_action
  */
 
 ?>
@@ -25,8 +24,6 @@ use Fisharebest\Webtrees\Tree;
       <tr>
         <th><?= I18N::translate('Person') ?></th>
         <th><?= I18N::translate('Von') ?></th>
-        <th><?= I18N::translate('Status') ?></th>
-        <th></th>
         <th></th>
       </tr>
     </thead>
@@ -36,19 +33,9 @@ use Fisharebest\Webtrees\Tree;
           <td><?= e($names[$row->id] ?? $row->xref) ?></td>
           <td><?= ($responders[$row->id] ?? '') !== '' ? e($responders[$row->id]) : '—' ?></td>
           <td>
-            <?= $row->status === 'applied' ? I18N::translate('Übernommen') : I18N::translate('Neue Antwort') ?>
-          </td>
-          <td>
             <a href="<?= e($urls[$row->id] ?? '') ?>">
               <?= I18N::translate('Ansehen') ?>
             </a>
-          </td>
-          <td>
-            <form method="post" action="<?= e($delete_action) ?>" onsubmit="return confirm('<?= e(I18N::translate('Diese Anfrage wirklich verwerfen?')) ?>');">
-              <?= csrf_field() ?>
-              <input type="hidden" name="id" value="<?= e((string) $row->id) ?>">
-              <button type="submit" class="btn btn-link text-danger p-0"><?= I18N::translate('Verwerfen') ?></button>
-            </form>
           </td>
         </tr>
       <?php endforeach; ?>

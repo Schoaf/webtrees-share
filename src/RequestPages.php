@@ -356,14 +356,17 @@ trait RequestPages
         $id   = Validator::queryParams($request)->integer('id', 0);
 
         if ($id === 0) {
+            // Only still-pending requests - once a request is applied or discarded there's
+            // nothing left to act on, so it simply drops off this list rather than sticking
+            // around as a "done" entry (there's no separate history view to maintain here).
             $rows = DB::table('webtreesshare_request')
                 ->where('gedcom_id', '=', $tree->id())
                 ->where('creator_user_id', '=', (int) Auth::id())
-                ->whereIn('status', ['answered', 'applied'])
+                ->where('status', '=', 'answered')
                 ->orderByDesc('responded_at')
                 ->get();
 
-            $urls      = [];
+            $urls       = [];
             $responders = [];
 
             foreach ($rows as $row) {
@@ -372,13 +375,12 @@ trait RequestPages
             }
 
             return $this->viewResponse($this->name() . '::request-review-list', [
-                'title'         => I18N::translate('Anfragen'),
-                'tree'          => $tree,
-                'rows'          => $rows,
-                'names'         => $this->namesFor($tree, $rows),
-                'urls'          => $urls,
-                'responders'    => $responders,
-                'delete_action' => $this->actionUrl('RequestDelete', $tree->name()),
+                'title'      => I18N::translate('Anfragen'),
+                'tree'       => $tree,
+                'rows'       => $rows,
+                'names'      => $this->namesFor($tree, $rows),
+                'urls'       => $urls,
+                'responders' => $responders,
             ]);
         }
 
@@ -535,8 +537,9 @@ trait RequestPages
     }
 
     /**
-     * JSON list of the creator's own answered/applied requests, for the app's native "Antworten"
-     * screen - same rows as getRequestReviewAction's id=0 (HTML) branch.
+     * JSON list of the creator's own still-pending requests, for the app's native "Antworten"
+     * screen - same rows (and same "only 'answered', not 'applied'" filter - see its comment)
+     * as getRequestReviewAction's id=0 (HTML) branch.
      */
     public function getRequestListAction(ServerRequestInterface $request): ResponseInterface
     {
@@ -545,7 +548,7 @@ trait RequestPages
         $rows = DB::table('webtreesshare_request')
             ->where('gedcom_id', '=', $tree->id())
             ->where('creator_user_id', '=', (int) Auth::id())
-            ->whereIn('status', ['answered', 'applied'])
+            ->where('status', '=', 'answered')
             ->orderByDesc('responded_at')
             ->get();
 
@@ -558,7 +561,6 @@ trait RequestPages
                 'id'          => (int) $row->id,
                 'xref'        => $row->xref,
                 'name'        => $names[$row->id] ?? $row->xref,
-                'status'      => $row->status,
                 'respondedAt' => $row->responded_at,
                 'responder'   => $this->responderLabel(json_decode($row->response_data ?? '{}', true) ?: []),
             ];

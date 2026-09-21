@@ -82,6 +82,10 @@ $field_labels = [
     font-weight: 500;
     cursor: pointer;
   }
+  .wtshare-review button[type="submit"]:disabled {
+    background: #C4C4C4;
+    cursor: not-allowed;
+  }
   .wtshare-delete-form button[type="submit"] {
     background: transparent;
     color: #B3261E;
@@ -113,7 +117,7 @@ $field_labels = [
   <?php elseif ($compare === [] && $note === '' && $photo_url === '') : ?>
     <p><?= I18N::translate('Es wurden keine Änderungen vorgeschlagen.') ?></p>
   <?php else : ?>
-    <form method="post" action="<?= e($action) ?>">
+    <form method="post" action="<?= e($action) ?>" id="wtshare-apply-form">
       <?= csrf_field() ?>
       <input type="hidden" name="id" value="<?= e((string) $row->id) ?>">
 
@@ -158,7 +162,28 @@ $field_labels = [
         </div>
       <?php endif; ?>
 
-      <p><button type="submit"><?= I18N::translate('Ausgewähltes übernehmen') ?></button></p>
+      <p><button type="submit" id="wtshare-apply-button" disabled><?= I18N::translate('Ausgewähltes übernehmen') ?></button></p>
     </form>
+    <script>
+      (function () {
+        var form = document.getElementById('wtshare-apply-form');
+        var button = document.getElementById('wtshare-apply-button');
+        var checkboxes = form.querySelectorAll('input[type="checkbox"]');
+
+        function update() {
+          var anyChecked = false;
+          checkboxes.forEach(function (checkbox) {
+            if (checkbox.checked) {
+              anyChecked = true;
+            }
+          });
+          button.disabled = !anyChecked;
+        }
+
+        checkboxes.forEach(function (checkbox) {
+          checkbox.addEventListener('change', update);
+        });
+      })();
+    </script>
   <?php endif; ?>
 </div>
