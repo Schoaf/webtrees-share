@@ -105,40 +105,11 @@ $field_labels = [
     action="<?= e($delete_action) ?>"
     class="wtshare-delete-form"
     style="margin-bottom: 16px;"
-    id="wtshare-delete-form"
   >
     <?= csrf_field() ?>
     <input type="hidden" name="id" value="<?= e((string) $row->id) ?>">
-    <button type="submit" id="wtshare-delete-button" data-default-label="<?= e(I18N::translate('Anfrage verwerfen')) ?>" data-confirm-label="<?= e(I18N::translate('Wirklich verwerfen? Nochmal klicken')) ?>">
-      <?= I18N::translate('Anfrage verwerfen') ?>
-    </button>
+    <button type="submit"><?= I18N::translate('Anfrage verwerfen') ?></button>
   </form>
-  <script>
-    // A native confirm() here is unreliable - browsers (Safari in particular) start silently
-    // suppressing repeated confirm() dialogs on a page after enough of them have been shown,
-    // which quietly drops the click instead of ever submitting the form. A plain two-step
-    // button (click once to arm it, click again within a few seconds to actually submit)
-    // needs no dialog API at all, so it can't be suppressed the same way.
-    (function () {
-      var form = document.getElementById('wtshare-delete-form');
-      var button = document.getElementById('wtshare-delete-button');
-      var confirming = false;
-      var resetTimer = null;
-
-      form.addEventListener('submit', function (event) {
-        if (confirming) {
-          return;
-        }
-        event.preventDefault();
-        confirming = true;
-        button.textContent = button.dataset.confirmLabel;
-        resetTimer = setTimeout(function () {
-          confirming = false;
-          button.textContent = button.dataset.defaultLabel;
-        }, 4000);
-      });
-    })();
-  </script>
 
   <?php if ($applied) : ?>
     <p class="alert alert-success"><?= I18N::translate('Diese Antwort wurde bereits übernommen.') ?></p>
