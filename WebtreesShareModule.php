@@ -32,7 +32,7 @@ use function route;
  * Entry point of the module: metadata, menu, schema migration and small shared request helpers.
  *
  * All endpoints run through webtrees' built-in module route
- * /module/webtrees-share/<Action>[/<tree>] (index.php?route=... without URL rewriting).
+ * /module/webtrees-contribution-request/<Action>[/<tree>] (index.php?route=... without URL rewriting).
  * There are deliberately no custom routes - the routing API changes between webtrees
  * versions, the module route stays.
  *
@@ -52,7 +52,7 @@ class WebtreesShareModule extends AbstractModule implements ModuleCustomInterfac
     use ModuleMenuTrait;
     use RequestPages;
 
-    public const string MODULE_NAME = 'webtrees-share';
+    public const string MODULE_NAME = 'webtrees-contribution-request';
 
     private const string SCHEMA_SETTING = 'webtreesshare_schema_version';
     private const int    SCHEMA_VERSION = 1;

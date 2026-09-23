@@ -17,7 +17,7 @@ jobs:
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./
-          server-dir: ./modules_v4/webtrees-share/
+          server-dir: ./modules_v4/webtrees-contribution-request/
           exclude: |
             **/.git*
             **/.git*/**

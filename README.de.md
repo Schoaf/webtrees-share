@@ -1,4 +1,4 @@
-# webtrees-share
+# webtrees-contribution-request
 
 [English](README.md) · **Deutsch**
 
@@ -36,7 +36,7 @@ Ein Link ist **2 Tage** gültig.
 
 ## Installation
 
-1. Diesen Ordner nach `modules_v4/webtrees-share` kopieren, sodass `modules_v4/webtrees-share/module.php`
+1. Diesen Ordner nach `modules_v4/webtrees-contribution-request` kopieren, sodass `modules_v4/webtrees-contribution-request/module.php`
    entsteht.
 2. Fertig. Das Modul legt beim ersten Aufruf seine eine Tabelle an (`webtreesshare_request`) und ist danach
    aktiv, sichtbar unter *Verwaltung → Module → Alle Module*.
@@ -56,7 +56,7 @@ Hand entfernt werden).
 ## Für Entwickler
 
 Einstieg in den Quelltext ist der Kopf von `WebtreesShareModule.php`. Die wichtigsten Endpunkte
-(`/module/webtrees-share/<Aktion>[/<Baum>]`, wie bei jedem webtrees-Modul ohne eigene Routen):
+(`/module/webtrees-contribution-request/<Aktion>[/<Baum>]`, wie bei jedem webtrees-Modul ohne eigene Routen):
 
 | Aktion | Methode | Angemeldet? | Zweck |
 | - | - | - | - |

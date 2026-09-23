@@ -1,9 +1,9 @@
 <?php
 
 /**
- * webtrees-share - ask a relative to fill in missing data, without an account.
+ * webtrees-contribution-request - ask a relative to fill in missing data, without an account.
  *
- * Installation: copy this folder to modules_v4/webtrees-share. The webtrees core stays untouched.
+ * Installation: copy this folder to modules_v4/webtrees-contribution-request. The webtrees core stays untouched.
  * The module class sits next to this file, its parts live under src/ - see the top of
  * WebtreesShareModule.php.
  */
