@@ -219,13 +219,28 @@ SVG;
     }
 
     /**
+     * A JSON body's numeric fields (e.g. {"id": 42}) decode to a PHP int, not a string - the
+     * Flutter app's JSON client sends `id` as a raw number, so a strict is_string() check here
+     * silently fell through to $default (usually '0') and broke every id-based POST action
+     * (RequestDelete, RequestApply, ...) coming from the app, not the web form (which always
+     * posts strings). Numbers are accepted and stringified; anything else (array, bool, null)
+     * still falls back to $default.
+     *
      * @param array<string,mixed> $body
      */
     private function str(array $body, string $key, string $default = ''): string
     {
         $value = $body[$key] ?? $default;
 
-        return is_string($value) ? $value : $default;
+        if (is_string($value)) {
+            return $value;
+        }
+
+        if (is_int($value) || is_float($value)) {
+            return (string) $value;
+        }
+
+        return $default;
     }
 
     private function error(int $status, string $code): ResponseInterface
