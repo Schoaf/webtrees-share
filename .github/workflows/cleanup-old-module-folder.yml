@@ -1,0 +1,20 @@
+name: Remove old webtrees-share module folder
+
+# One-off: the webtrees-share -> webtrees-contribution-request rename left
+# the old modules_v4/webtrees-share/ folder in place on production. Both
+# folders declare the same PHP class (WebtreesShare\WebtreesShareModule),
+# which webtrees' module auto-discovery loads for every enabled+discovered
+# module folder - "Cannot redeclare class", fatal, site-wide 500. Deleting
+# the old folder removes the collision.
+on:
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Delete modules_v4/webtrees-share via FTP
+        run: |
+          sudo apt-get update -y && sudo apt-get install -y lftp
+          lftp -u "${{ secrets.FTP_USERNAME }},${{ secrets.FTP_PASSWORD }}" "${{ secrets.FTP_HOST }}" -e "rm -rf modules_v4/webtrees-share; bye"
