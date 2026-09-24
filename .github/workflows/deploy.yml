@@ -22,3 +22,19 @@ jobs:
             **/.git*
             **/.git*/**
             **/.github/**
+
+      # FTP-Deploy-Action can leave a partial upload on the server without
+      # failing the job (or fail after only some files transferred, e.g. a
+      # dropped connection) - this compares local vs. remote file counts so
+      # an incomplete deploy is caught here instead of surfacing later as a
+      # broken module in production.
+      - name: Verify deploy completeness
+        run: |
+          sudo apt-get update -y && sudo apt-get install -y lftp
+          LOCAL_COUNT=$(find . -type f -not -path './.git/*' -not -name '.git*' -not -path './.github/*' | wc -l)
+          REMOTE_COUNT=$(lftp -u "${{ secrets.FTP_USERNAME }},${{ secrets.FTP_PASSWORD }}" "${{ secrets.FTP_HOST }}" -e "find modules_v4/webtrees-contribution-request; bye" | grep -v '/$' | grep -cv '^$')
+          echo "Local files: $LOCAL_COUNT  Remote files: $REMOTE_COUNT"
+          if [ "$LOCAL_COUNT" != "$REMOTE_COUNT" ]; then
+            echo "::error::File count mismatch after deploy - local=$LOCAL_COUNT remote=$REMOTE_COUNT. Deploy is incomplete."
+            exit 1
+          fi
